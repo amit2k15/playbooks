@@ -5,4 +5,4 @@
   - name: restart zabbixagent
     service:
       name: zabbix-agent
-      state: stopped
+      state: restarted
