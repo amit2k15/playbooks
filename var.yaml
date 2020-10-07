@@ -1,4 +1,4 @@
-- hosts: all
+- hosts: "{{ HOST }}"
   #remote_user: root
 
   tasks:
