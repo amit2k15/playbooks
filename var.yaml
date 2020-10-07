@@ -4,6 +4,6 @@
   tasks:
   - name: restart zabbixagent
     service:
-      name: "{{ pid }}"
+      name: "{{ impactedEntities.name }}"
       state: restarted
       
