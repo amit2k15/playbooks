@@ -1,8 +1,8 @@
-- hosts: "{{ HOST }}"
+- hosts: all
   #remote_user: root
 
   tasks:
   - name: restart zabbixagent
     service:
-      name: "{{ SERVICE_NAME }}"
+      name: "{{ name }}"
       state: restarted
