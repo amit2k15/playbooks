@@ -1,0 +1,9 @@
+- hosts: all
+
+  tasks:
+  -  name: Root FS usage
+     shell: df -h {{ FS_MOUNTPOINT }} |awk ' { print $5 } ' |grep -v Use
+     register: dfroot
+
+  -  debug:
+       msg: "System {{ inventory_hostname }}'s root FS utiliation is {{ dfroot.stdout }}"
