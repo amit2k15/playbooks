@@ -1,0 +1,9 @@
+---
+ - hosts: all
+   connection: local
+   gather_facts: false
+
+   tasks:
+   - name: Print nested json input
+     debug:
+        msg: "impactedEntities : {{ impactedEntities }} || impactedEntities.type : {{ impactedEntities.type }} || impactedEntities.name : {{  impactedEntities.name }}"
