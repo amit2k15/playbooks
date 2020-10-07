@@ -3,6 +3,8 @@
 
   tasks:
   - name: restart zabbixagent
+    debug:
+      when: state == "OPEN"
     service:
       name: "{{ impactedEntities.entity }}"
       state: restarted
