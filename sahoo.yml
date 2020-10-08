@@ -1,12 +1,4 @@
----
- - hosts: all
-   connection: local
-   gather_facts: false
-
-   tasks:
-   - name: "Display all cluster names"
-     debug:
-       var: item
-     loop: "{{ domain_definition | community.general.json_query('domain.cluster[*].name') }}"
-        
-   
+- name: "Display all cluster names"
+  debug:
+    var: item
+  loop: "{{ domain_definition | community.general.json_query('domain.cluster[*].name') }}"
