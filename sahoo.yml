@@ -5,5 +5,5 @@
   tasks:
   - name: restart zabbixagent
     service:
-      name: "{{ message }}"
+      name: "{{ message.name }}"
       state: restarted
