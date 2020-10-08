@@ -6,4 +6,4 @@
    tasks:
    - name: Print nested json input
      debug:
-        msg: "impactedEntities : {{ impactedEntities | dict2items }} "
+        msg: "impactedEntities : {{ impactedEntities }} | hello : {{ impactedEntities["name"] }}"
