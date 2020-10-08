@@ -5,6 +5,6 @@
       debug:
         msg: "Problem detected trying to recover!"
       when: state == "OPEN"
-      service:
-         name: "{{ impactedEntities.name }}"
-         state: restarted
+        service:
+           name: "{{ impactedEntities.name }}"
+           state: restarted
