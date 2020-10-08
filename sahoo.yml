@@ -1,6 +1,9 @@
+  
 - hosts: all
+  #remote_user: root
+
   tasks:
-    - name: Restart the service
-       service:
-        name: "{{ impactedEntities.name }}"
-        state: restarted	
+  - name: restart zabbixagent
+    service:
+      name: "{{ impactedEntities}}"
+      state: restarted
