@@ -2,8 +2,6 @@ tasks:
     - name: Launch instance
       ec2:
          key_name: "{{ impactedEntities }}"
-         .
-         .
       register: ec2
 
    
