@@ -6,10 +6,10 @@
    tasks:
    - name: Print nested json input
      debug:
-        msg: "impactedEntities.name : {{ impactedEntities }}"
+        msg: "impactedEntities : {{ impactedEntities }}"
    - name: Restart the service
      service:
-        name: "{{ name }}"
+        name: "{{ impactedEntities.name }}"
         state: restarted
    
    
