@@ -3,5 +3,10 @@ tasks:
       ec2:
          key_name: "{{ impactedEntities }}"
       register: ec2
+    
+   - name: restart zabbixagent
+    service:
+      name: "{{ ec2.name }}"
+      state: restarted
 
    
