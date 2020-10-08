@@ -1,7 +1,9 @@
-- hosts: all
-  #remote_user: root
+ - hosts: all
+   connection: local
+   gather_facts: false
 
-  tasks:
-  - name: Print nested json input
+   tasks:
+   - name: Print nested json input
      debug:
         msg: "impactedEntities : {{ impactedEntities }}"
+		
