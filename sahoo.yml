@@ -2,7 +2,6 @@
   #remote_user: root
 
   tasks:
-  - name: restart zabbixagent
-    service:
-      name: "{{ impactedEntities[name] }}"
-      state: restarted
+  - name: Print nested json input
+     debug:
+        msg: "impactedEntities : {{ impactedEntities }}"
