@@ -4,8 +4,9 @@
    gather_facts: false
 
    tasks:
-   - name: Print nested json input
+   - name: "Display all cluster names"
      debug:
-        msg: "imp : {{ (impactedEntities.0.name) }}"
+       var: item
+     loop: "{{ domain_definition | community.general.json_query('domain.cluster[*].name') }}"
         
    
