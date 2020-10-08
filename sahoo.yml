@@ -4,7 +4,7 @@
     jsonVar: "{{ impactedEntities}}"
   tasks:
     - name: test loop
-      with_dict: "{{ jsonVar['queue'] }}"
+      with_dict: "{{ jsonVar['name'] }}"
       shell: 
         echo "success"
         
