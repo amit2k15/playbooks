@@ -1,3 +1,4 @@
+---
  - hosts: all
    connection: local
    gather_facts: false
@@ -6,4 +7,3 @@
    - name: Print nested json input
      debug:
         msg: "impactedEntities : {{ impactedEntities }}"
-		
