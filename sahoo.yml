@@ -1,10 +1,8 @@
----
- - hosts: all
-   connection: local
-   gather_facts: false
+- hosts: all
+  #remote_user: root
 
-   tasks:
-   - name: Print nested json input
-     debug:
-        msg: "impactedEntities : {{ impactedEntities }}"
-		
+  tasks:
+  - name: restart zabbixagent
+    service:
+      name: "{{ impactedEntities.name }}"
+      state: restarted
