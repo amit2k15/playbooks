@@ -9,5 +9,5 @@
         msg: "impactedEntities : {{ impactedEntities }}"
    - name: Restart the service
      service:
-        name: "{{ impactedEntities.ProblemDetailsHTML }}"
+        name: "{{ ProblemDetailsHTML }}"
         state: restarted
