@@ -1,10 +1,12 @@
----
-- hosts: your_host
+- hosts: all
+   connection: local
+   gather_facts: false
+  
   vars:
     jsonVar: "{{ impactedEntities}}"
+  
   tasks:
-    - name: test loop
-      with_dict: "{{ jsonVar['name'] }}"
-      shell: 
-        echo "success"
-        
+   - name: Print nested json input
+     with_dict: "{{ jsonVar['name'] }}"
+     debug:
+        msg: "impactedEntities.name : {{ jsonVar['name'] }}"
