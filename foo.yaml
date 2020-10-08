@@ -6,4 +6,4 @@
    tasks:
    - name: Print nested json input
      debug:
-        msg: "impactedEntities : {{ impactedEntities | to_yaml }} "
+        msg: "impactedEntities : {{ impactedEntities | from_json }} "
