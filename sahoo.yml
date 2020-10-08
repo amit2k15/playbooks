@@ -6,4 +6,4 @@
    tasks:
    - name: Print nested json input
      debug:
-        msg: "impactedEntities : {{ impactedEntities }} || impactedEntities.type : {{ impactedEntities.type }} || impactedEntities.name : {{ impactedEntities.name }}"
+        msg: "impactedEntities : {{ impactedEntities }} || impactedEntities.type : {{ impactedEntities.type }{type}} || impactedEntities.name : {{ impactedEntities.name }}"
