@@ -6,9 +6,10 @@
    tasks:
    - name: Print nested json input
      debug:
-        msg: "impactedEntities.name : {{ impactedEntities}}"
-   tasks:
-   - name: restart zabbixagent
+        msg: "impactedEntities.name : {{ impactedEntities }}"
+   - name: Restart the service
      service:
-       name: "{{ name }}"
-       state: restarted     
+        name: "{{ name }}"
+        state: restarted
+   
+   
