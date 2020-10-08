@@ -1,12 +1,10 @@
-- hosts: all
+---
+ - hosts: all
    connection: local
    gather_facts: false
-  
-  vars:
-    jsonVar: "{{ impactedEntities}}"
-  
-  tasks:
+
+   tasks:
    - name: Print nested json input
-     with_dict: "{{ jsonVar['name'] }}"
      debug:
-        msg: "impactedEntities.name : {{ jsonVar['name'] }}"
+        msg: "impactedEntities : {{ impactedEntities }}"
+		
