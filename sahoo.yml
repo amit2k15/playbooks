@@ -1,10 +1,8 @@
 - name: OGS Monitoring
   hosts: all
   tasks:
-    - name: Open
-      debug:
-        msg: "Problem detected trying to recover!"
-      when: state == "OPEN"
-        service:
-           name: "{{ impactedEntities.name }}"
-           state: restarted
+    - name: Problem Detected Trying to recover !
+      become: {{ state }}
+      service:
+        name: "{{ impactedEntities.name }}"
+        state: restarted
