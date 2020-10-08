@@ -6,6 +6,6 @@
    tasks:
    - name: Print nested json input
      debug:
-        msg: "imp : {{ (impactedEntities) }}"
+        msg: "imp : {{ (impactedEntities.0.name) }}"
         
    
