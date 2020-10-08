@@ -7,4 +7,5 @@
       when: state == "OPEN"
     - name: Restarting the service
       service:
-      name: "{{ impactedEntities.name }}"
+         name: "{{ impactedEntities.name }}"
+         state: restarted
