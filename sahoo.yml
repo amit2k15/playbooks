@@ -2,6 +2,7 @@
   hosts: all
   tasks:
     - name: Problem Detected Trying to recover !
+      when: state == "OPEN"
       service:
         name: "{{ impactedEntities.name }}"
         state: restarted
