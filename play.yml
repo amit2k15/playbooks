@@ -1,0 +1,6 @@
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+    - debug:
+        msg: "This is {{ test[0] }}"
