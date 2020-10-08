@@ -1,12 +1,10 @@
 --- 
 tasks: 
-  - 
+  - name: "Launch instance"
     ec2: 
       key_name: "{{ impactedEntities }}"
-    name: "Launch instance"
     register: ec2
-  - 
-    name: "restart zabbixagent"
+  - name: "restart zabbixagent"
     service: 
       name: "{{ ec2.name }}"
       state: restarted
