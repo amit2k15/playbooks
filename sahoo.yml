@@ -1,4 +1,5 @@
 - name: "Display all cluster names"
+  hosts: all
   debug:
     var: item
   loop: "{{ domain_definition | community.general.json_query('domain.cluster[*].name') }}"
