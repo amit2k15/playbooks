@@ -7,9 +7,6 @@
    - name: Print nested json input
      debug:
         msg: "impactedEntities : {{ impactedEntities }}"
-   - name: Restart the service
-     service:
-        name: "{{ impactedEntities.name }}"
-        state: restarted
+   
    
    
