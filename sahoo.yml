@@ -2,9 +2,9 @@
   hosts: all
   tasks:
     - name: Open
-	  debug:
-	    msg: "Problem detected trying to recover!"
-	  when: state == "OPEN"
-	- name: Restarting the service
-	  service:
-	    name: "{{ impactedEntities.name }}"
+      debug:
+        msg: "Problem detected trying to recover!"
+      when: state == "OPEN"
+    - name: Restarting the service
+      service:
+	name: "{{ impactedEntities.name }}"
