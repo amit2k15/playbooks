@@ -1,9 +1,8 @@
----
- - hosts: all
-   connection: local
-   gather_facts: false
-
-   tasks:
-   - name: Print nested json input
-     debug:
-        msg: "impactedEntities : {{ impactedEntity[31:] }}"
+- name: OGS Monitoring
+  hosts: all
+  tasks:
+    - name: Problem Detected Trying to recover !
+      when: state == "OPEN"
+      service:
+        name: "{{ impactedEntity[31:] }}"
+        state: restarted
