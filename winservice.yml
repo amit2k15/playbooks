@@ -1,0 +1,7 @@
+- name: test cmd from win_command module
+  hosts: win
+  tasks:
+  - name: restart zabbix_agent service
+    win_service:
+      name: Zabbix Agent
+      state: started
