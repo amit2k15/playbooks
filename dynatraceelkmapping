@@ -1,0 +1,441 @@
+PUT /dynatrace?include_type_name=true
+{
+	"mappings": {
+		"session": {
+			"dynamic_templates": [
+				{
+					"string_fields": {
+						"match": "*",
+						"match_mapping_type": "string",
+						"mapping": {
+							"norms": "false",
+							"type": "keyword"
+						}
+					}
+				}
+			],
+			"properties": {
+				"applicationType": {
+					"type": "keyword"
+				},
+				"appVersion": {
+					"type": "keyword"
+				},
+				"bounce": {
+					"type": "boolean"
+				},
+				"browserFamily": {
+					"type": "keyword"
+				},
+				"browserMajorVersion": {
+					"type": "keyword"
+				},
+				"browserMonitorId": {
+					"type": "keyword"
+				},
+				"browserMonitorName": {
+					"type": "keyword"
+				},
+				"browserType": {
+					"type": "keyword"
+				},
+				"carrier": {
+					"type": "keyword"
+				},
+				"city": {
+					"type": "keyword"
+				},
+				"clientTimeOffset": {
+					"type": "integer"
+				},
+				"clientType": {
+					"type": "keyword"
+				},
+				"continent": {
+					"type": "keyword"
+				},
+				"connectionType": {
+					"type": "keyword"
+				},
+			 	"rootedOrJailbroken": {
+					"type": "boolean"
+			 	},
+				"country": {
+					"type": "keyword"
+				},
+				"dateProperties": {
+					"type": "nested",
+					"properties": {
+						"value": {
+							"type": "date"
+						}
+					}
+				},
+				"device": {
+					"type": "keyword"
+				},
+				"displayResolution": {
+					"type": "keyword"
+				},
+				"doubleProperties": {
+					"type": "nested",
+					"properties": {
+						"value": {
+							"type": "double"
+						}
+					}
+				},
+				"duration": {
+					"type": "integer"
+				},
+				"endReason": {
+					"type": "keyword"
+				},
+				"endTime": {
+					"type": "date"
+				},
+				"events": {
+					"type": "nested",
+					"properties": {
+						"application": {
+							"type": "keyword"
+						},
+						"internalApplicationId": {
+							"type": "keyword"
+						},
+						"name": {
+							"type": "keyword"
+						},
+						"startTime": {
+							"type": "date"
+						},
+						"type": {
+							"type": "keyword"
+						},
+						"page": {
+						  "type": "keyword"
+						},
+						"pageGroup": {
+						  "type": "keyword"
+						},
+						"pageReferrer": {
+						  "type": "keyword"
+						},
+						"pageReferrerGroup": {
+						  "type": "keyword"
+						}
+					}
+				},
+				"errors": {
+					"type": "nested",
+					"properties": {
+						"application": {
+							"type": "keyword"
+						},
+						"internalApplicationId": {
+							"type": "keyword"
+						},
+						"name": {
+							"type": "keyword"
+						},
+						"startTime": {
+							"type": "date"
+						},
+						"type": {
+							"type": "keyword"
+						}
+					}
+				},
+				"hasCrash": {
+					"type": "boolean"
+				},
+			    "hasError": {
+				    "type": "boolean"
+				},
+				"crashGroupId": {
+					"type": "keyword"
+				},
+				"hasSessionReplay": {
+					"type": "boolean"
+				},
+				"internalUserId": {
+					"type": "keyword"
+				},
+				"ip": {
+					"type": "ip"
+				},
+				"isp": {
+					"type": "text"
+				},
+				"longProperties": {
+					"type": "nested",
+					"properties": {
+						"value": {
+							"type": "long"
+						}
+					}
+				},
+				"manufacturer": {
+					"type": "keyword"
+				},
+				"matchingConversionGoals": {
+					"type": "keyword"
+				},
+				"networkTechnology": {
+					"type": "keyword"
+				},
+				"newUser": {
+					"type": "boolean"
+				},
+				"numberOfRageClicks": {
+					"type": "integer"
+				},
+				"osFamily": {
+					"type": "keyword"
+				},
+				"osVersion": {
+					"type": "keyword"
+				},
+				"region": {
+					"type": "keyword"
+				},
+				"replayStart": {
+					"type": "date"
+				},
+				"replayEnd": {
+					"type": "date"
+				},
+				"screenHeight": {
+					"type": "integer"
+				},
+				"screenOrientation": {
+					"type": "keyword"
+				},
+				"screenWidth": {
+					"type": "integer"
+				},
+				"startTime": {
+					"type": "date"
+				},
+				"stringProperties": {
+					"type": "nested"
+				},
+				"syntheticEvents": {
+					"type": "nested",
+					"properties": {
+						"errorCode": {
+							"type": "short"
+						},
+						"errorName": {
+							"type": "keyword"
+						},
+						"name": {
+							"type": "keyword"
+						},
+						"sequenceNumber": {
+							"type": "integer"
+						},
+						"syntheticEventId": {
+							"type": "keyword"
+						},
+						"timestamp": {
+							"type": "date"
+						},
+						"type": {
+							"type": "keyword"
+						}
+					}
+				},
+				"tenantId": {
+					"type": "keyword"
+				},
+				"totalErrorCount": {
+					"type": "integer"
+				},
+				"totalLicenceCreditCount": {
+					"type": "integer"
+				},
+				"userActionCount": {
+					"type": "integer"
+				},
+				"userActions": {
+					"type": "nested",
+					"properties": {
+						"apdexCategory": {
+							"type": "keyword"
+						},
+						"application": {
+							"type": "keyword"
+						},
+						"cdnResources": {
+							"type": "integer"
+						},
+						"cdnBusyTime": {
+							"type": "integer"
+						},
+						"documentInteractiveTime": {
+							"type": "integer"
+						},
+						"domCompleteTime": {
+							"type": "long"
+						},
+						"domContentLoadedTime": {
+							"type": "long"
+						},
+						"domain": {
+							"type": "keyword"
+						},
+						"duration": {
+							"type": "integer"
+						},
+						"endTime": {
+							"type": "date"
+						},
+						"firstPartyBusyTime": {
+							"type": "integer"
+						},
+						"firstPartyResources": {
+							"type": "integer"
+						},
+						"frontendTime": {
+							"type": "integer"
+						},
+						"hasCrash": {
+							"type": "boolean"
+						},
+						"customErrorCount": {
+							"type": "integer"
+						},
+						"javascriptErrorCount": {
+							"type": "integer"
+						},
+						"requestErrorCount": {
+							"type": "integer"
+						},
+						"internalApplicationId": {
+							"type": "keyword"
+						},
+						"internalKeyUserActionId": {
+							"type": "keyword"
+						},
+						"keyUserAction": {
+							"type": "boolean"
+						},
+						"loadEventEnd": {
+							"type": "double"
+						},
+						"loadEventStart": {
+							"type": "double"
+						},
+						"name": {
+							"type": "keyword"
+						},
+						"navigationStart": {
+							"type": "long"
+						},
+						"networkTime": {
+							"type": "integer"
+						},
+						"requestStart": {
+							"type": "long"
+						},
+						"responseEnd": {
+							"type": "long"
+						},
+						"responseStart": {
+							"type": "long"
+						},
+						"serverTime": {
+							"type": "integer"
+						},
+						"speedIndex": {
+							"type": "long"
+						},
+						"startTime": {
+							"type": "date"
+						},
+						"syntheticEvent": {
+							"type": "keyword"
+						},
+						"syntheticEventId": {
+							"type": "keyword"
+						},
+						"targetUrl": {
+							"type": "keyword"
+						},
+						"thirdPartyBusyTime": {
+							"type": "integer"
+						},
+						"thirdPartyResources": {
+							"type": "integer"
+						},
+						"type": {
+							"type": "keyword"
+						},
+						"visuallyCompleteTime": {
+							"type": "long"
+						},
+					    "errors": {
+							"type": "nested",
+							"properties": {
+								"type": {
+									"type": "keyword"
+								},
+								"startTime": {
+									"type": "date"
+								},
+								"name": {
+									"type": "keyword"
+								},
+								"message": {
+									"type": "text"
+								},
+								"requestUrl": {
+									"type": "text"
+								}
+							}
+						}
+					}
+				},
+				"userExperienceScore": {
+					"type": "keyword"
+				},
+				"userId": {
+					"type": "keyword"
+				},
+				"userSessionId": {
+					"type": "keyword"
+				},
+				"userType": {
+					"type": "keyword"
+				},
+				"standaloneErrors": {
+					"type": "nested",
+					"properties": {
+						"type": {
+							"type": "keyword"
+						},
+						"startTime": {
+							"type": "date"
+						},
+						"name": {
+							"type": "keyword"
+						},
+						"message": {
+							"type": "text"
+						},
+						"application": {
+							"type": "keyword"
+						},
+						"internalApplicationId": {
+							"type": "keyword"
+						},
+						"requestUrl": {
+							"type": "text"
+						}
+					}
+				}
+			}
+		}
+	}
+}
