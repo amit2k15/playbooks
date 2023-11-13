@@ -1,1 +1,7 @@
-Unfortunately, my mother has recently passed away, and my family and I are going through a challenging time coping with this loss.During the coming days, we have several rituals and responsibilities that I need to participate in to support my family, especially i need to look after my father.
+SELECT
+  (SELECT VALUE
+   FROM GV_$SYSSTAT
+   WHERE NAME = 'index scans (full)') / (SELECT VALUE / 100
+                                          FROM GV_$SYSSTAT
+                                          WHERE NAME = 'elapsed time') AS index_scans_per_sec
+FROM GV_$INSTANCE;
