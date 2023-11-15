@@ -1,49 +1,114 @@
-import pandas as pd
-from pyzabbix import ZabbixAPI
+import requests
+import openpyxl
 
-# Zabbix server URL
-zabbix_url = 'http://your-zabbix-server.com/zabbix'
-# Zabbix API credentials
-zabbix_user = 'your-username'
-zabbix_password = 'your-password'
+# Zabbix API details
+zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
+zabbix_username = 'your_username'
+zabbix_password = 'your_password'
 
-# Host group name for which you want to fetch data
-host_group_name = 'Your Host Group Name'
+# Host group and service name
+host_group_name = 'YourHostGroupName'
+service_name = 'YourServiceName'
 
-# Connect to the Zabbix server
-zapi = ZabbixAPI(zabbix_url)
-zapi.login(zabbix_user, zabbix_password)
+# Zabbix API authentication
+headers = {'Content-Type': 'application/json'}
+data = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_username,
+        'password': zabbix_password,
+    },
+    'id': 1,
+}
 
-# Get host group ID
-host_groups = zapi.hostgroup.get(filter={"name": host_group_name})
-if not host_groups:
-    raise ValueError(f"Host group '{host_group_name}' not found.")
-host_group_id = host_groups[0]['groupid']
+response = requests.post(zabbix_url, json=data, headers=headers)
+auth_result = response.json()
 
-# Get hosts in the specified host group
-hosts = zapi.host.get(groupids=[host_group_id], output=['hostid', 'host'])
+if 'result' in auth_result:
+    auth_token = auth_result['result']
+    print(f'Zabbix API authentication successful. Auth token: {auth_token}')
 
-# Create an Excel writer
-excel_writer = pd.ExcelWriter('zabbix_data.xlsx', engine='xlsxwriter')
+    # Get host group ID
+    get_host_group_data = {
+        'jsonrpc': '2.0',
+        'method': 'hostgroup.get',
+        'params': {
+            'output': 'extend',
+            'filter': {
+                'name': host_group_name,
+            },
+        },
+        'auth': auth_token,
+        'id': 1,
+    }
 
-# Iterate through each host and fetch service information
-for host in hosts:
-    host_id = host['hostid']
-    host_name = host['host']
+    host_group_response = requests.post(zabbix_url, json=get_host_group_data, headers=headers)
+    host_group_result = host_group_response.json()
 
-    # Get services for the current host
-    services = zapi.service.get(hostids=[host_id], output=['serviceid', 'name', 'status'])
+    if 'result' in host_group_result and host_group_result['result']:
+        host_group_id = host_group_result['result'][0]['groupid']
+        print(f'Host group ID for "{host_group_name}": {host_group_id}')
 
-    # Convert service data to a Pandas DataFrame
-    services_df = pd.DataFrame(services)
+        # Get hosts in the host group
+        get_hosts_data = {
+            'jsonrpc': '2.0',
+            'method': 'host.get',
+            'params': {
+                'output': ['hostid', 'name'],
+                'groupids': host_group_id,
+            },
+            'auth': auth_token,
+            'id': 1,
+        }
 
-    # Write the DataFrame to an Excel sheet
-    services_df.to_excel(excel_writer, sheet_name=host_name, index=False)
+        hosts_response = requests.post(zabbix_url, json=get_hosts_data, headers=headers)
+        hosts_result = hosts_response.json()
 
-# Save the Excel file
-excel_writer.save()
+        if 'result' in hosts_result and hosts_result['result']:
+            hosts = hosts_result['result']
 
-# Logout from Zabbix API
-zapi.logout()
+            # Create an Excel workbook
+            workbook = openpyxl.Workbook()
 
-print(f"Data exported to 'zabbix_data.xlsx'")
+            for host in hosts:
+                host_id = host['hostid']
+                host_name = host['name']
+
+                # Get the status of the specified service on the host
+                get_service_data = {
+                    'jsonrpc': '2.0',
+                    'method': 'item.get',
+                    'params': {
+                        'output': ['lastvalue'],
+                        'hostids': host_id,
+                        'search': {'key_': f'service.info[{service_name}].state'},
+                    },
+                    'auth': auth_token,
+                    'id': 1,
+                }
+
+                service_response = requests.post(zabbix_url, json=get_service_data, headers=headers)
+                service_result = service_response.json()
+
+                if 'result' in service_result and service_result['result']:
+                    service_status = service_result['result'][0]['lastvalue']
+
+                    # Create a new sheet for each host
+                    sheet = workbook.create_sheet(title=host_name)
+
+                    # Write headers
+                    sheet.append(['Service', 'Status'])
+                    # Write data
+                    sheet.append([service_name, service_status])
+
+            # Save the Excel workbook
+            workbook.save('zabbix_results.xlsx')
+            print('Excel file created successfully.')
+
+        else:
+            print(f'Failed to get hosts in the host group "{host_group_name}".')
+    else:
+        print(f'Failed to get host group ID for "{host_group_name}".')
+else:
+    print('Zabbix API authentication failed.')
