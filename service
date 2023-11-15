@@ -1,125 +1,105 @@
 import requests
-import json
-from openpyxl import Workbook
+import pandas as pd
 
-# Zabbix API credentials
-zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
-zabbix_username = 'your_username'
-zabbix_password = 'your_password'
+# Zabbix API information
+zabbix_url = 'http://your-zabbix-server/api_jsonrpc.php'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
 
 # Zabbix API authentication
-def authenticate():
-    headers = {'Content-Type': 'application/json'}
-    payload = {
-        'jsonrpc': '2.0',
-        'method': 'user.login',
-        'params': {
-            'user': zabbix_username,
-            'password': zabbix_password
-        },
-        'id': 1,
-        'auth': None
-    }
-    response = requests.post(zabbix_url, data=json.dumps(payload), headers=headers)
-    result = response.json()
-    return result['result']
+headers = {'Content-Type': 'application/json'}
+auth_payload = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_user,
+        'password': zabbix_password
+    },
+    'id': 1
+}
 
-# Get host IDs in a specific host group
-def get_host_ids(group_name):
-    headers = {'Content-Type': 'application/json'}
-    auth_token = authenticate()
-    payload = {
+auth_response = requests.post(zabbix_url, json=auth_payload, headers=headers)
+auth_result = auth_response.json()
+
+if 'result' in auth_result:
+    auth_token = auth_result['result']
+    print(f'Authentication successful. Token: {auth_token}')
+
+    # Get host group ID for the specific host group
+    hostgroup_name = 'YourHostGroupName'
+    hostgroup_payload = {
         'jsonrpc': '2.0',
         'method': 'hostgroup.get',
         'params': {
-            'output': 'extend',
             'filter': {
-                'name': group_name
+                'name': [hostgroup_name]
             },
-            'selectHosts': 'extend'
+            'output': ['groupid']
         },
         'auth': auth_token,
-        'id': 1
+        'id': 2
     }
-    response = requests.post(zabbix_url, data=json.dumps(payload), headers=headers)
-    result = response.json()
-    return [host['hostid'] for host in result['result'][0]['hosts']]
 
-# Get items for a specific host
-def get_items(host_id):
-    headers = {'Content-Type': 'application/json'}
-    auth_token = authenticate()
-    payload = {
-        'jsonrpc': '2.0',
-        'method': 'item.get',
-        'params': {
-            'output': 'extend',
-            'hostids': host_id,
-            'search': {'key_': 'State of service'}
-        },
-        'auth': auth_token,
-        'id': 1
-    }
-    response = requests.post(zabbix_url, data=json.dumps(payload), headers=headers)
-    result = response.json()
-    return result['result']
+    hostgroup_response = requests.post(zabbix_url, json=hostgroup_payload, headers=headers)
+    hostgroup_result = hostgroup_response.json()
 
-# Get item status for a specific item
-def get_item_status(item_id):
-    headers = {'Content-Type': 'application/json'}
-    auth_token = authenticate()
-    payload = {
-        'jsonrpc': '2.0',
-        'method': 'history.get',
-        'params': {
-            'output': 'extend',
-            'history': 0,
-            'itemids': item_id,
-            'sortfield': 'clock',
-            'sortorder': 'DESC',
-            'limit': 1
-        },
-        'auth': auth_token,
-        'id': 1
-    }
-    response = requests.post(zabbix_url, data=json.dumps(payload), headers=headers)
-    result = response.json()
-    return result['result'][0]['value']
+    if 'result' in hostgroup_result and hostgroup_result['result']:
+        hostgroup_id = hostgroup_result['result'][0]['groupid']
+        print(f'Host group ID for {hostgroup_name}: {hostgroup_id}')
 
-# Create Excel workbook and sheets
-def create_excel(host_names, items):
-    workbook = Workbook()
+        # Get hosts in the host group
+        host_payload = {
+            'jsonrpc': '2.0',
+            'method': 'host.get',
+            'params': {
+                'groupids': [hostgroup_id],
+                'output': ['hostid', 'name']
+            },
+            'auth': auth_token,
+            'id': 3
+        }
 
-    for host_name in host_names:
-        worksheet = workbook.create_sheet(title=host_name)
+        host_response = requests.post(zabbix_url, json=host_payload, headers=headers)
+        host_result = host_response.json()
 
-        # Add headers
-        headers = ['Item Name', 'Item Status']
-        worksheet.append(headers)
+        if 'result' in host_result and host_result['result']:
+            for host in host_result['result']:
+                host_id = host['hostid']
+                host_name = host['name']
 
-        # Get items and their status for the host
-        host_id = get_host_ids(host_name)[0]
-        host_items = get_items(host_id)
+                # Get items for each host
+                item_payload = {
+                    'jsonrpc': '2.0',
+                    'method': 'item.get',
+                    'params': {
+                        'hostids': [host_id],
+                        'output': ['itemid', 'name', 'status'],
+                        'search': {'key_': 'State of service'}
+                    },
+                    'auth': auth_token,
+                    'id': 4
+                }
 
-        for item in host_items:
-            item_name = item['name']
-            item_id = item['itemid']
-            item_status = get_item_status(item_id)
+                item_response = requests.post(zabbix_url, json=item_payload, headers=headers)
+                item_result = item_response.json()
 
-            worksheet.append([item_name, item_status])
+                if 'result' in item_result and item_result['result']:
+                    items_data = item_result['result']
 
-    # Remove default sheet created by openpyxl
-    workbook.remove(workbook['Sheet'])
-    
-    # Save the workbook to a file
-    workbook.save('zabbix_data.xlsx')
+                    # Create a Pandas DataFrame
+                    df = pd.DataFrame(items_data)
 
-if __name__ == "__main__":
-    # Replace 'Your Host Group Name' with the actual host group name
-    host_group_name = 'Your Host Group Name'
-    
-    # Get host names in the specified host group
-    host_names = get_host_ids(host_group_name)
+                    # Write DataFrame to Excel with the host name as the sheet name
+                    excel_writer = pd.ExcelWriter(f'{host_name}_items.xlsx', engine='xlsxwriter')
+                    df.to_excel(excel_writer, sheet_name=host_name, index=False)
+                    excel_writer.save()
 
-    # Create Excel workbook and sheets
-    create_excel(host_names, items)
+                    print(f'Excel file created for {host_name} with items containing "State of service"')
+                else:
+                    print(f'No items found for {host_name}')
+        else:
+            print(f'No hosts found in the host group: {hostgroup_name}')
+    else:
+        print(f'Host group not found: {hostgroup_name}')
+else:
+    print('Authentication failed.')
