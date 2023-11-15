@@ -1,0 +1,49 @@
+import pandas as pd
+from pyzabbix import ZabbixAPI
+
+# Zabbix server URL
+zabbix_url = 'http://your-zabbix-server.com/zabbix'
+# Zabbix API credentials
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Host group name for which you want to fetch data
+host_group_name = 'Your Host Group Name'
+
+# Connect to the Zabbix server
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
+
+# Get host group ID
+host_groups = zapi.hostgroup.get(filter={"name": host_group_name})
+if not host_groups:
+    raise ValueError(f"Host group '{host_group_name}' not found.")
+host_group_id = host_groups[0]['groupid']
+
+# Get hosts in the specified host group
+hosts = zapi.host.get(groupids=[host_group_id], output=['hostid', 'host'])
+
+# Create an Excel writer
+excel_writer = pd.ExcelWriter('zabbix_data.xlsx', engine='xlsxwriter')
+
+# Iterate through each host and fetch service information
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+
+    # Get services for the current host
+    services = zapi.service.get(hostids=[host_id], output=['serviceid', 'name', 'status'])
+
+    # Convert service data to a Pandas DataFrame
+    services_df = pd.DataFrame(services)
+
+    # Write the DataFrame to an Excel sheet
+    services_df.to_excel(excel_writer, sheet_name=host_name, index=False)
+
+# Save the Excel file
+excel_writer.save()
+
+# Logout from Zabbix API
+zapi.logout()
+
+print(f"Data exported to 'zabbix_data.xlsx'")
