@@ -12,3 +12,4 @@ Action.c(213): Response code for Click_Create_DLCCR is 200	[MsgId: MMSG-17999]
 Action.c(215): Current time is 11/20/2023 6:40:35 AM	[MsgId: MMSG-17999]
 Vuser Terminated.
 C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin
+& "C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe" -usr "C:\Program Files (x86)\Micro Focus\Virtual User Generator\hello\amit.usr"
