@@ -1,12 +1,17 @@
-Action.c(56): Response time taken for IFMS_Launch_Page is 0.396007 seconds
-Action.c(58): Current time is 11/20/2023 5:34:27 AM
-Action.c(63): Status of IFMS_Launch_Page is PASS
-Action.c(64): Response code for IFMS_Launch_Page is 200
-Action.c(139): Response time taken for IFMS_Login is 12.078713 seconds
-Action.c(145): Status of IFMS_Login is PASS
-Action.c(146): Response code for IFMS_Login is 200
-Action.c(148): Current time is 11/20/2023 5:34:39 AM
-Action.c(206): Response time taken for Click_Create_DLCCR is 12.078713 seconds
-Action.c(212): Status of Click_Create_DLCCR is PASS
-Action.c(213): Response code for Click_Create_DLCCR is 200
-Action.c(215): Current time is 11/20/2023 5:34:39 AM
+# Replace "YourScriptName" with the actual name of your script file without extension
+$scriptName = "YourScriptName"
+
+# Replace "Path\to\your\script" with the actual path to your script file
+$scriptPath = "Path\to\your\script\$scriptName"
+
+# Replace "YourScenario" with the name of your scenario
+$scenarioName = "YourScenario"
+
+# Path to LoadRunner's bin directory
+$loadRunnerBinPath = "C:\Program Files (x86)\Micro Focus\LoadRunner\bin"  # Adjust the path accordingly
+
+# Build the command to execute the script
+$command = "$loadRunnerBinPath\mmdrv.exe -usr $scriptPath -load $scenarioName"
+
+# Execute the command
+Invoke-Expression $command
