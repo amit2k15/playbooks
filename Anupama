@@ -15,16 +15,4 @@ C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin
 & "C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe" -usr "C:\Program Files (x86)\Micro Focus\Virtual User Generator\hello\amit.usr"
 
 
-Hi Mano,
-
-I hope this message finds you well. Following our recent discussion regarding the Zabbix agent configuration on the servers, I wanted to provide you with an update.
-
-Upon further investigation, we have identified that the Enterprise Zabbix agent is currently configured on the specified servers instead of the expected ORx-Zabbix agent. To address this, we are exploring the option of modifying the agent configuration to redirect the traffic to the ORx-Zabbix instance.
-
-However, it's important to note that the Enterprise Zabbix team is the owner of the agent configuration, and any changes or modifications may need their approval. We are currently in discussions with the Enterprise Zabbix team to coordinate and implement the necessary adjustments.
-
-While these discussions are ongoing, we understand the urgency of monitoring the required services on the target machines. As an interim solution, we propose installing a fresh instance of the Zabbix agent on the respective servers. This will allow us to promptly monitor the required services and ensure the continuity of our monitoring capabilities.
-
-We appreciate your patience and understanding as we work through this process. Please feel free to reach out if you have any questions or if there's anything specific you would like to discuss further.
-
-Thank you for your cooperation.
+& "C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe" -usr "C:\IFMS_2023\IFMS_Create_DLCCR\IFMS_Create_DLCCR.usr"
