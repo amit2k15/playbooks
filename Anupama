@@ -1,50 +1,12 @@
-
-Application Onboarding:
-
-Identified and documented new applications for monitoring.
-Configured monitoring parameters for the onboarded applications in Zabbix.
-Ensured proper integration with the existing infrastructure.
-Synthetic Monitoring using VuGen:
-
-Implemented synthetic monitoring using VuGen (Virtual User Generator).
-Created and executed virtual user scripts to simulate user interactions with applications.
-Monitored application performance under simulated user load.
-Alert Optimization:
-
-Reviewed and refined existing alert configurations in Zabbix.
-Fine-tuned alert thresholds to reduce false positives and negatives.
-Implemented best practices to enhance the effectiveness of alert notifications.
-Report Generation:
-
-Generated regular reports on key performance indicators (KPIs) for monitored applications.
-Customized reports to meet specific requirements of stakeholders.
-Automated report generation processes for efficiency.
-Issue Troubleshooting:
-
-Investigated and resolved issues identified through monitoring alerts.
-Conducted root cause analysis for critical incidents.
-Collaborated with relevant teams to address and resolve performance issues.
-Documentation:
-
-Maintained detailed documentation of the onboarding process, monitoring configurations, and issue resolution steps.
-Updated documentation to reflect changes and improvements made during the review period.
-Training and Knowledge Transfer:
-
-Conducted training sessions to share best practices and tips on using Zabbix effectively.
-Provided guidance to team members on troubleshooting techniques and alert management.
-Performance Analysis:
-
-Analyzed performance trends and patterns based on monitoring data.
-Provided insights and recommendations for improving overall system performance.
-Continuous Improvement:
-
-Suggested and implemented improvements to the monitoring process.
-Stayed informed about the latest features and updates in Zabbix for potential enhancements.
-Collaboration:
-
-Worked closely with cross-functional teams to align monitoring efforts with overall business goals.
-Participated in meetings and discussions to address concerns and plan future enhancements.
-Feedback and Reporting:
-
-Collected feedback from end-users and stakeholders to assess the effectiveness of monitoring solutions.
-Prepared and presented reports on the performance of the monitoring system and its impact on operations.
+Action.c(56): Response time taken for IFMS_Launch_Page is 0.396007 seconds
+Action.c(58): Current time is 11/20/2023 5:34:27 AM
+Action.c(63): Status of IFMS_Launch_Page is PASS
+Action.c(64): Response code for IFMS_Launch_Page is 200
+Action.c(139): Response time taken for IFMS_Login is 12.078713 seconds
+Action.c(145): Status of IFMS_Login is PASS
+Action.c(146): Response code for IFMS_Login is 200
+Action.c(148): Current time is 11/20/2023 5:34:39 AM
+Action.c(206): Response time taken for Click_Create_DLCCR is 12.078713 seconds
+Action.c(212): Status of Click_Create_DLCCR is PASS
+Action.c(213): Response code for Click_Create_DLCCR is 200
+Action.c(215): Current time is 11/20/2023 5:34:39 AM
