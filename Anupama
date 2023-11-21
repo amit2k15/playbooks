@@ -40,4 +40,4 @@ $command = "& 'C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmd
 
 # Execute the command
 Invoke-Expression $command
-
+system.run[powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Path\To\Your\Script\MyScript.ps1" -arg1 {$ARG1}]
