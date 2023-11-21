@@ -16,3 +16,28 @@ C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin
 
 
 & "C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe" -usr "C:\IFMS_2023\IFMS_Create_DLCCR\IFMS_Create_DLCCR.usr"
+
+param(
+    [string]$Scriptname
+)
+
+if (-not $Scriptname) {
+    Write-Host "Please provide a script name."
+    exit 1
+}
+
+# Construct the full path to the .usr file
+$usrFilePath = "C:\IFMS_2023\$Scriptname\$Scriptname.usr"
+
+# Check if the .usr file exists
+if (-not (Test-Path $usrFilePath)) {
+    Write-Host "The specified .usr file does not exist: $usrFilePath"
+    exit 1
+}
+
+# Construct the full command
+$command = "& 'C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe' -usr '$usrFilePath'"
+
+# Execute the command
+Invoke-Expression $command
+
