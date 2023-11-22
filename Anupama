@@ -41,3 +41,16 @@ $command = "& 'C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmd
 # Execute the command
 Invoke-Expression $command
 system.run[powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Path\To\Your\Script\MyScript.ps1" -arg1 {$ARG1}]
+
+
+Dear [Insurance Company Representative's Name],
+
+I trust this email finds you well. I am writing to follow up on our recent discussion and seek an update on the status of my mother's insurance claim.
+
+As per my conversation with Arjun from your Hyderabad team earlier today, he informed me that the claim has been processed and is currently awaiting payment. He assured me that he would be coordinating with the hospital to arrange for the payment.
+
+Considering that it has been almost a month since my mother's passing, I am eagerly awaiting the settlement of the claim. I understand that these processes can take time, but given the circumstances, I would appreciate it if you could kindly expedite the resolution.
+
+Could you please coordinate with the Hyderabad team and provide me with the latest update on the status of the payment? Your prompt attention to this matter would be highly appreciated during this challenging time for my family.
+
+Thank you for your understanding and assistance. I look forward to receiving a positive update soon.
