@@ -19,11 +19,17 @@ if (-not (Test-Path $usrFilePath)) {
 # Construct the full command
 $command = "& 'C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe' -usr '$usrFilePath'"
 
-# Execute the command
-try {
-    Start-Process powershell -ArgumentList $command -Wait -PassThru
+# Execute the command and capture the process ID
+$process = Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`"" -PassThru
+
+# Wait for the process to complete
+$process.WaitForExit()
+
+# Check the exit code
+if ($process.ExitCode -eq 0) {
     Write-Host "Script executed successfully."
-}
-catch {
-    Write-Host "Script execution failed. Error: $_"
+    exit 0
+} else {
+    Write-Host "Script execution failed with exit code $($process.ExitCode)."
+    exit 1
 }
