@@ -54,3 +54,35 @@ Considering that it has been almost a month since my mother's passing, I am eage
 Could you please coordinate with the Hyderabad team and provide me with the latest update on the status of the payment? Your prompt attention to this matter would be highly appreciated during this challenging time for my family.
 
 Thank you for your understanding and assistance. I look forward to receiving a positive update soon.
+
+param(
+    [string]$Scriptname
+)
+
+if (-not $Scriptname) {
+    Write-Host "Please provide a script name."
+    exit 1
+}
+
+# Construct the full path to the .usr file
+$usrFilePath = "C:\IFMS_2023\$Scriptname\$Scriptname.usr"
+
+# Check if the .usr file exists
+if (-not (Test-Path $usrFilePath)) {
+    Write-Host "The specified .usr file does not exist: $usrFilePath"
+    exit 1
+}
+
+try {
+    # Add your script execution code here
+    # For example:
+    # . "$usrFilePath"
+
+    Write-Host "Script executed successfully."
+    exit 0
+}
+catch {
+    Write-Host "Error executing the script: $_"
+    exit 1
+}
+
