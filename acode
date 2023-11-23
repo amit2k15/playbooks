@@ -1,0 +1,29 @@
+param(
+    [string]$Scriptname
+)
+
+if (-not $Scriptname) {
+    Write-Host "Please provide a script name."
+    exit 1
+}
+
+# Construct the full path to the .usr file
+$usrFilePath = "C:\IFMS_2023\$Scriptname\$Scriptname.usr"
+
+# Check if the .usr file exists
+if (-not (Test-Path $usrFilePath)) {
+    Write-Host "The specified .usr file does not exist: $usrFilePath"
+    exit 1
+}
+
+# Construct the full command
+$command = "& 'C:\Program Files (x86)\Micro Focus\Virtual User Generator\bin\mmdrv.exe' -usr '$usrFilePath'"
+
+# Execute the command
+try {
+    Start-Process powershell -ArgumentList $command -Wait -PassThru
+    Write-Host "Script executed successfully."
+}
+catch {
+    Write-Host "Script execution failed. Error: $_"
+}
