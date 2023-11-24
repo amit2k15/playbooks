@@ -1,48 +1,37 @@
 # Read the content of the output.txt file
-$content = Get-Content -Path 'output.txt' -Raw
+$content = Get-Content -Path "C:\Path\To\Your\output.txt" -Raw
 
-# Regular expressions to discover unique names
-$responseTimePattern = 'Response time taken for (\w+)'
-$responseCodePattern = 'Response code for (\w+)'
-$statusPattern = 'Status of (\w+)'
+# Regular expression pattern to discover unique names
+$name_pattern = "Response time taken for (\w+)"
+$unique_names = $content | Select-String -Pattern $name_pattern | ForEach-Object { $_.Matches.Groups[1].Value } | Get-Unique
 
-# Function to discover unique names
-function DiscoverNames($pattern, $content) {
-    $matches = [Regex]::Matches($content, $pattern)
-    $uniqueNames = $matches.Groups[1].Value | Select-Object -Unique
-    return $uniqueNames
-}
+# Zabbix discovery format
+$discovery = @()
 
-# Discover unique names for each pattern
-$responseTimeNames = DiscoverNames $responseTimePattern $content
-$responseCodeNames = DiscoverNames $responseCodePattern $content
-$statusNames = DiscoverNames $statusPattern $content
-
-# Function to create Zabbix LLD items
-function CreateZabbixLLDItems($names, $itemType) {
-    $lldItems = @()
-
-    foreach ($name in $names) {
-        $lldItem = @{
-            '{#ITEMNAME}' = "$itemType $name"
-        }
-        $lldItems += $lldItem
+foreach ($name in $unique_names) {
+    $discovery += @{
+        "{#NAME}" = $name
     }
-
-    return $lldItems | ConvertTo-Json
 }
 
-# Create Zabbix LLD items for each pattern
-$responseTimeLLDItems = CreateZabbixLLDItems $responseTimeNames "Response time"
-$responseCodeLLDItems = CreateZabbixLLDItems $responseCodeNames "Response code"
-$statusLLDItems = CreateZabbixLLDItems $statusNames "Status"
+# Convert the discovery data to JSON format
+$json_discovery = $discovery | ConvertTo-Json
 
-# Print Zabbix LLD items
-Write-Output "Response time LLD items:"
-Write-Output $responseTimeLLDItems
+# Print the JSON discovery data
+Write-Output $json_discovery
 
-Write-Output "Response code LLD items:"
-Write-Output $responseCodeLLDItems
+# Iterate through each unique name and query respective values
+foreach ($name in $unique_names) {
+    $response_time_pattern = "Response time taken for $name is (\d+\.\d+) seconds"
+    $status_pattern = "Status of $name is (\w+)"
+    $response_code_pattern = "Response code for $name is (\d+)"
 
-Write-Output "Status LLD items:"
-Write-Output $statusLLDItems
+    $response_time = $content | Select-String -Pattern $response_time_pattern | ForEach-Object { $_.Matches.Groups[1].Value }
+    $status = $content | Select-String -Pattern $status_pattern | ForEach-Object { $_.Matches.Groups[1].Value }
+    $response_code = $content | Select-String -Pattern $response_code_pattern | ForEach-Object { $_.Matches.Groups[1].Value }
+
+    # Print the values or use them as needed (e.g., send to Zabbix)
+    Write-Output "Item 1: Response time $name - Latest Value: $response_time"
+    Write-Output "Item 2: Response code $name - Latest Value: $response_code"
+    Write-Output "Item 3: Status of $name - Latest Value: $status"
+}
