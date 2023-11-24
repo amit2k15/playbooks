@@ -1,0 +1,39 @@
+import re
+from datetime import datetime
+
+# Read the content of the output.txt file
+with open('output.txt', 'r') as file:
+    content = file.read()
+
+# Regular expressions to extract relevant information
+response_time_pattern = re.compile(r'Response time taken for (\w+) is (\d+\.\d+) seconds')
+status_pattern = re.compile(r'Status of (\w+) is (\w+)')
+response_code_pattern = re.compile(r'Response code for (\w+) is (\d+)')
+
+# Function to get the latest value for each item
+def get_latest_value(data, item_name):
+    matches = re.finditer(data, item_name)
+    latest_match = max(matches, key=lambda x: datetime.strptime(x.group(1), '%m/%d/%Y %I:%M:%S %p'))
+    return latest_match.group(2)
+
+# Discover item names
+item_names = set(re.findall(r'Response time taken for (\w+)', content))
+
+# Zabbix discovery format
+zabbix_items = []
+
+for name in item_names:
+    zabbix_items.append(
+        {"name": f"Response time {name}", "pattern": re.compile(fr'Response time taken for {name} is (\d+\.\d+) seconds')},
+    )
+    zabbix_items.append(
+        {"name": f"Response code {name}", "pattern": re.compile(fr'Response code for {name} is (\d+)')},
+    )
+    zabbix_items.append(
+        {"name": f"Status {name}", "pattern": re.compile(fr'Status of {name} is (\w+)')},
+    )
+
+# Iterate through each Zabbix item and print the latest value
+for item in zabbix_items:
+    latest_value = get_latest_value(item["pattern"], content)
+    print(f"Item Name: {item['name']}\nLatest Value: {latest_value}\n")
