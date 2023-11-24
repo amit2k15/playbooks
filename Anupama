@@ -87,3 +87,4 @@ catch {
 }
 
 C:\Program Files\Zabbix Agent
+UserParameter=script_execution[*],powershell.exe -File "C:\Program Files\Zabbix Agent\synthetic.ps1" "$1"
