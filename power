@@ -1,0 +1,23 @@
+Action.c(56): Response time taken for IFMS_Launch_Page is 0.207677 seconds	[MsgId: MMSG-17999]
+Action.c(58): Current time is 11/20/2023 6:40:24 AM	[MsgId: MMSG-17999]
+Action.c(63): Status of IFMS_Launch_Page is PASS	[MsgId: MMSG-17999]
+Action.c(64): Response code for IFMS_Launch_Page is 200	[MsgId: MMSG-17999]
+Action.c(139): Response time taken for IFMS_Login is 11.254738 seconds	[MsgId: MMSG-17999]
+Action.c(145): Status of IFMS_Login is PASS	[MsgId: MMSG-17999]
+Action.c(146): Response code for IFMS_Login is 200	[MsgId: MMSG-17999]
+Action.c(148): Current time is 11/20/2023 6:40:35 AM	[MsgId: MMSG-17999]
+Action.c(206): Response time taken for Click_Create_DLCCR is 11.254738 seconds	[MsgId: MMSG-17999]
+Action.c(212): Status of Click_Create_DLCCR is PASS	[MsgId: MMSG-17999]
+Action.c(213): Response code for Click_Create_DLCCR is 200	[MsgId: MMSG-17999]
+Action.c(215): Current time is 11/20/2023 6:40:35 AM	[MsgId: MMSG-17999]
+Vuser Terminated.
+
+powershell script to discover names as follows by using Zabbix lld.
+
+expected output
+
+{
+   "{#NAME}": "IFMS_Launch_Page"
+   "{#NAME}": "IFMS_Login"
+   "{#NAME}": "Click_Create_DLCCR"
+}
