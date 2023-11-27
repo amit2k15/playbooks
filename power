@@ -22,3 +22,24 @@ $jsonOutput = $uniqueNames | ConvertTo-Json
 Write-Output $jsonOutput
 
 UserParameter=custom.discover_names,powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\discover_names.ps1"
+
+
+param (
+    [string]$transactionName
+)
+
+# Specify the path to the text file
+$filePath = "C:\above.txt"
+
+# Read the content of the file
+$fileContent = Get-Content -Path $filePath
+
+# Search for the line containing the specified transaction name
+$line = $fileContent | Where-Object { $_ -match "$transactionName" }
+
+# Extract the response time from the line
+$responseTime = [regex]::match($line, 'Response time taken for (\S+) is (\d+\.\d+) seconds').Groups[2].Value
+
+# Output the response time
+$responseTime
+
