@@ -20,3 +20,5 @@ $jsonOutput = $uniqueNames | ConvertTo-Json
 
 # Display the final JSON output
 Write-Output $jsonOutput
+
+UserParameter=custom.discover_names,powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\discover_names.ps1"
