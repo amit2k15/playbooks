@@ -21,6 +21,14 @@ $jsonOutput = $uniqueNames | ConvertTo-Json
 # Display the final JSON output
 Write-Output $jsonOutput
 
+Hi Scott,
+
+Thank you for bringing up the issue that occurred on the 7th. After investigating, we found that it was related to the monthly patching of the Zabbix proxy.
+
+The root cause was identified as duplicate entries created by a discovery rule, resulting in gaps in the application graphs. We are actively working on removing these duplicate servers to prevent this issue from recurring in the future.
+
+We appreciate your understanding and patience as we address and resolve this matter.
+
 UserParameter=custom.discover_names,powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\discover_names.ps1"
 
 
