@@ -1,17 +1,22 @@
-# Path to the log file
-$filePath = "C:\above.txt"
-
 # Read content from the file
-$logData = Get-Content -Path $filePath -Raw
+$fileContent = Get-Content "C:\above.txt"
 
-# Regular expression pattern to match names
-$pattern = "(?<=for\s)(\w+)(?=\sis)"
+# Define an array to store unique names
+$uniqueNames = @()
 
-# Extract names using regex
-$names = $logData | Select-String -Pattern $pattern -AllMatches | ForEach-Object { $_.Matches.Value }
+# Regex pattern to extract names
+$pattern = 'Response time taken for (\S+)'
 
-# Create JSON output
-$jsonOutput = $names | ForEach-Object { @{ "{#NAME}" = $_ } } | ConvertTo-Json
+# Iterate through each line
+foreach ($line in $fileContent) {
+    if ($line -match $pattern) {
+        $name = $matches[1]
+        $uniqueNames += @{ "{#NAME}" = $name }
+    }
+}
 
-# Output the result
+# Convert array to JSON format
+$jsonOutput = $uniqueNames | ConvertTo-Json
+
+# Display the final JSON output
 Write-Output $jsonOutput
