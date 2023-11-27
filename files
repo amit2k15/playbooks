@@ -1,0 +1,29 @@
+#!/bin/bash
+
+directory="/path/to/directory"
+age_threshold=86400  # 24 hours in seconds
+
+files=$(find "$directory" -maxdepth 1 -type f)
+
+echo '{"data":['
+
+first=true
+for file in $files; do
+    if [ -f "$file" ]; then
+        # Calculate file age
+        file_age=$(($(date +%s) - $(date -r "$file" +%s)))
+
+        # Check if the file is older than the threshold
+        if [ "$file_age" -gt "$age_threshold" ]; then
+            # Output discovery data
+            if [ "$first" = true ]; then
+                first=false
+            else
+                echo ','
+            fi
+            echo -n '{"{#FILE}":"'$(basename "$file")'","{#AGE}":'$file_age'}'
+        fi
+    fi
+done
+
+echo ']}'
