@@ -1,13 +1,9 @@
-Dear [Insurance Company Name],
+Hi Mona,
 
-I hope this email finds you well. I am writing to follow up on the status of my insurance claim (Claim Number: [Your Claim Number]), which was submitted for processing on [Date]. As of today, it has been more than a month since the claim process was initiated, and unfortunately, I have not received any resolution or update on the matter.
+The monitoring setup which we have recently implemented for IFMS probes is indeed quite similar to what we have configured for other URLs and web services in Zabbix. However, I would like to highlight distinct enhancement that we've recently incorporated.
 
-I recently had a discussion with the Hyderabad team on [Date of Discussion], and they informed me that they have not received any updates from the hospital regarding my claim. I understand that the resolution process involves coordination between multiple parties, and I appreciate the efforts made thus far.
+Zabbix, by default, does not support Single Sign-On (SSO) authentication for monitoring URLs or Web services for full synthetic monitoring features. Recognizing the importance of this functionality, we have taken the initiative to integrate a new module into Zabbix, which we refer to as Synthetic Monitoring.
 
-However, considering the elapsed time and the lack of information, I kindly request your assistance in coordinating with all relevant parties involved in the resolution of my claim. This includes both your internal teams and the hospital staff to ensure that all necessary information is provided promptly.
+This module is specifically designed to seamlessly authenticate SSO-based applications, providing a comprehensive out-of-the-box solution for synthetic monitoring. we can now extend our monitoring capabilities to cover more funcitionalities based on the scenarios or requierments.
 
-I am eager to settle this matter and recover the expenses I incurred out of pocket for the hospital bill. Therefore, I would appreciate it if you could provide me with a detailed update on the current status of my claim and the expected timeline for its resolution.
-
-If there are any additional documents or information required from my end to expedite the process, please let me know, and I will promptly provide the necessary details.
-
-Thank you for your attention to this matter, and I look forward to a swift resolution.
+If you have any further questions or if there's anything specific you would like to explore regarding this new Synthetic Monitoring module, please feel free to reach our team.
