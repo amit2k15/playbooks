@@ -1,0 +1,64 @@
+import pymysql
+import pandas as pd
+from datetime import datetime, timedelta
+
+# MySQL connection details
+db_host = "your_mysql_host"
+db_user = "your_mysql_user"
+db_password = "your_mysql_password"
+db_name = "your_zabbix_db"
+
+# Zabbix host group and item key
+host_group_name = "YourHostGroupName"
+item_key = "system.cpu.util"
+
+# Connect to MySQL
+conn = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_name)
+cursor = conn.cursor()
+
+# Function to execute MySQL query
+def execute_query(query):
+    cursor.execute(query)
+    return cursor.fetchall()
+
+# Get last week and last month dates
+end_date = datetime.now()
+last_week_start_date = end_date - timedelta(days=7)
+last_month_start_date = end_date - timedelta(days=30)
+
+# Format dates to MySQL date format
+end_date_str = end_date.strftime('%Y-%m-%d')
+last_week_start_date_str = last_week_start_date.strftime('%Y-%m-%d')
+last_month_start_date_str = last_month_start_date.strftime('%Y-%m-%d')
+
+# Query to get average CPU utilization for last week and last month
+query = f"""
+    SELECT h.host, AVG(i.value) AS avg_cpu_util
+    FROM items i
+    JOIN hosts h ON i.hostid = h.hostid
+    WHERE i.key_ = '{item_key}' AND h.host IN (
+        SELECT host
+        FROM hosts_groups hg
+        JOIN groups g ON hg.groupid = g.groupid
+        WHERE g.name = '{host_group_name}'
+    )
+    AND i.clock BETWEEN UNIX_TIMESTAMP('{last_week_start_date_str}') AND UNIX_TIMESTAMP('{end_date_str}')
+    GROUP BY h.host
+"""
+
+# Execute the query
+result = execute_query(query)
+
+# Create a DataFrame from the query result
+df = pd.DataFrame(result, columns=['Host', 'Average_CPU_Utilization'])
+df['Average_CPU_Utilization'] = df['Average_CPU_Utilization'].round(2)
+
+# Write the DataFrame to an Excel file
+excel_file_path = "cpu_utilization_report.xlsx"
+df.to_excel(excel_file_path, index=False, engine='openpyxl')
+
+# Close MySQL connection
+cursor.close()
+conn.close()
+
+print(f"Report generated successfully: {excel_file_path}")
