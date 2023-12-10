@@ -1,0 +1,41 @@
+import pymysql
+import pandas as pd
+
+# MySQL database connection parameters
+db_params = {
+    'host': 'your_host',
+    'user': 'your_user',
+    'password': 'your_password',
+    'db': 'your_database',
+}
+
+# MySQL query
+query = """
+    SELECT h.host, MAX(hu.value) AS max_value
+    FROM hosts h
+    INNER JOIN items i ON h.hostid = i.hostid
+    INNER JOIN history_uint hu ON i.itemid = hu.itemid
+    INNER JOIN hosts_groups hg ON h.hostid = hg.hostid
+    WHERE i.name = 'hello' AND hg.groupid = 34
+    GROUP BY h.host
+    ORDER BY max_value DESC;
+"""
+
+# Connect to MySQL database
+connection = pymysql.connect(**db_params)
+
+# Execute the query and fetch the results into a pandas DataFrame
+df = pd.read_sql_query(query, connection)
+
+# Close the database connection
+connection.close()
+
+# Convert epoch timestamp to CST time format
+df['max_value'] = pd.to_datetime(df['max_value'], unit='s', utc=True)
+df['max_value'] = df['max_value'].dt.tz_convert('America/Chicago')  # Adjust to the desired timezone
+
+# Export the data to an Excel sheet
+excel_filename = 'output_data.xlsx'
+df.to_excel(excel_filename, index=False)
+
+print(f'Data has been exported to {excel_filename}')
