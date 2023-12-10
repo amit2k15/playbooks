@@ -1,0 +1,29 @@
+import pandas as pd
+from datetime import datetime
+import pytz
+
+# Read the Excel file
+input_file_path = 'path/to/your/excel/file.xlsx'
+df = pd.read_excel(input_file_path)
+
+# Function to convert GMT to CST
+def convert_to_cst(gmt_str):
+    gmt_format = "%b %d %H:%M:%S %Y GMT"
+    gmt_datetime = datetime.strptime(gmt_str, gmt_format)
+    
+    # Define time zones
+    gmt_timezone = pytz.timezone('GMT')
+    cst_timezone = pytz.timezone('America/Chicago')  # CST time zone
+    
+    # Convert to CST
+    gmt_datetime = gmt_timezone.localize(gmt_datetime)
+    cst_datetime = gmt_datetime.astimezone(cst_timezone)
+    
+    return cst_datetime
+
+# Apply the conversion function to the 'Date' column
+df['Date'] = df['Date'].apply(lambda x: convert_to_cst(x))
+
+# Save the modified DataFrame to a new Excel file
+output_file_path = 'path/to/your/output/file.xlsx'
+df.to_excel(output_file_path, index=False)
