@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Check if a file path is provided as an argument
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 <file_path>"
+    exit 1
+fi
+
+# Get the provided file path
+file_path="$1"
+
+# Check if the file path is a directory
+if [ ! -d "$file_path" ]; then
+    echo "Error: '$file_path' is not a directory."
+    exit 1
+fi
+
+# Use find to locate files in the given directory (not in subdirectories)
+# that are more than 5 minutes old and count them
+count=$(find "$file_path" -maxdepth 1 -type f -mmin +5 | wc -l)
+
+echo "Count of files more than 5 minutes old in $file_path: $count"
