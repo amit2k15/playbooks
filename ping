@@ -1,0 +1,29 @@
+import openpyxl
+from ping3 import ping, verbose_ping
+
+def ping_hosts(excel_file_path):
+    # Load the Excel workbook
+    workbook = openpyxl.load_workbook(excel_file_path)
+    sheet = workbook.active
+
+    # Get the maximum row number with data
+    max_row = sheet.max_row
+
+    # Iterate through each row
+    for row_num in range(2, max_row + 1):  # Assuming data starts from the second row
+        # Get the host from the first column (assuming hosts are in column A)
+        host = sheet.cell(row=row_num, column=1).value
+
+        # Ping the host
+        ip_address = ping(host)
+
+        # Update the Excel file with IP and ping status
+        sheet.cell(row=row_num, column=2).value = ip_address if ip_address else "Failed to ping"
+        sheet.cell(row=row_num, column=3).value = "Reachable" if ip_address else "Unreachable"
+
+    # Save the changes
+    workbook.save(excel_file_path)
+
+if __name__ == "__main__":
+    excel_file_path = "path/to/your/excel/file.xlsx"
+    ping_hosts(excel_file_path)
