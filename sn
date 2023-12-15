@@ -1,42 +1,8 @@
-import openpyxl
-import socket
-import subprocess
+Hi Sheryl,
 
-def get_ip_address(hostname):
-    try:
-        ip_address = socket.gethostbyname(hostname)
-        return ip_address
-    except socket.error:
-        return None
+The mentioned incident was initiated by Courtney to fulfill a custom monitoring requirement.After discussing this with Courtney and the team, it was determined that the development of a new module is necessary to meet this specific monitoring need.This process takes time. we communicated the necessary timelines for this task. Unfortunately, due to the nature of the incident, there was no option to pause the timer, which ultimately led to the breach of the SLA.
 
-def ping_host(hostname):
-    try:
-        subprocess.check_output(["ping", "-c", "1", hostname], stderr=subprocess.STDOUT, text=True)
-        return "Reachable"
-    except subprocess.CalledProcessError:
-        return "Unreachable"
+I will inform courtney and team and close the incident.
 
-def update_excel(file_path, sheet_name, hostname_column, ip_column, status_column):
-    workbook = openpyxl.load_workbook(file_path)
-    sheet = workbook[sheet_name]
+Thank you for your understanding.
 
-    for row in range(2, sheet.max_row + 1):  # Assuming data starts from row 2
-        hostname = sheet.cell(row=row, column=hostname_column).value
-        if hostname:
-            ip_address = get_ip_address(hostname)
-            if ip_address:
-                status = ping_host(ip_address)
-                sheet.cell(row=row, column=ip_column).value = ip_address
-                sheet.cell(row=row, column=status_column).value = status
-
-    workbook.save(file_path)
-    print("Excel file updated successfully.")
-
-# Example usage
-file_path = "path/to/your/excel/file.xlsx"
-sheet_name = "Sheet1"
-hostname_column = 1  # Assuming hostnames are in the first column (A)
-ip_column = 2  # Assuming you want to store IP addresses in the second column (B)
-status_column = 3  # Assuming you want to store ping status in the third column (C)
-
-update_excel(file_path, sheet_name, hostname_column, ip_column, status_column)
