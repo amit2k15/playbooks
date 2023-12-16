@@ -1,62 +1,82 @@
 import requests
-from requests.auth import HTTPBasicAuth
-import openpyxl
-from openpyxl import Workbook
+import json
 
-# Zabbix API credentials and URL
-zabbix_url = 'http://your_zabbix_server/api_jsonrpc.php'
-zabbix_user = 'your_username'
-zabbix_password = 'your_password'
+def get_zabbix_proxy_last_seen(zabbix_url, username, password, proxy_name):
+    # Zabbix API endpoint
+    api_url = f"{zabbix_url}/zabbix/api_jsonrpc.php"
 
-# Zabbix API version
-zabbix_api_version = '4.0'  # Change this to match your Zabbix version
-
-# Create a session for API requests
-session = requests.Session()
-session.auth = HTTPBasicAuth(zabbix_user, zabbix_password)
-session.headers.update({'Content-Type': 'application/json'})
-
-def get_zabbix_proxies():
-    # Get Zabbix proxies
-    data = {
-        'jsonrpc': '2.0',
-        'method': 'proxy.get',
-        'params': {
-            'output': 'extend',
-            'selectInterface': 'extend',
-            'selectHosts': 'extend'
+    # Zabbix API authentication payload
+    auth_payload = {
+        "jsonrpc": "2.0",
+        "method": "user.login",
+        "params": {
+            "user": username,
+            "password": password
         },
-        'auth': None,
-        'id': 1
+        "id": 1,
+        "auth": None
     }
 
-    response = session.post(zabbix_url, json=data)
-    proxies = response.json()['result']
+    # Authenticate and get the authentication token
+    response = requests.post(api_url, data=json.dumps(auth_payload), headers={"Content-Type": "application/json"})
+    result = response.json()
+    auth_token = result["result"]
 
-    return proxies
+    # Zabbix API request to get proxy information
+    proxy_payload = {
+        "jsonrpc": "2.0",
+        "method": "proxy.get",
+        "params": {
+            "output": ["proxyid", "host"],
+            "selectInterface": ["ip"],
+            "filter": {
+                "host": proxy_name
+            }
+        },
+        "id": 2,
+        "auth": auth_token
+    }
 
-def create_excel_file(proxies):
-    # Create Excel workbook and sheet
-    wb = Workbook()
-    ws = wb.active
+    # Get the proxy information
+    response = requests.post(api_url, data=json.dumps(proxy_payload), headers={"Content-Type": "application/json"})
+    result = response.json()
 
-    # Add headers to the sheet
-    headers = ['Proxy Name', 'Last Seen']
-    ws.append(headers)
+    # Check if the proxy was found
+    if "result" in result and result["result"]:
+        proxy_info = result["result"][0]
+        proxy_id = proxy_info["proxyid"]
 
-    # Add data to the sheet
-    for proxy in proxies:
-        proxy_name = proxy['host']
-        last_seen = proxy['lastaccess']
-        ws.append([proxy_name, last_seen])
+        # Zabbix API request to get proxy last seen information
+        last_seen_payload = {
+            "jsonrpc": "2.0",
+            "method": "proxy.get",
+            "params": {
+                "output": "extend",
+                "selectInterface": ["ip"],
+                "proxyids": proxy_id
+            },
+            "id": 3,
+            "auth": auth_token
+        }
 
-    # Save the workbook to a file
-    wb.save('zabbix_proxy_last_seen.xlsx')
+        # Get the last seen information for the proxy
+        response = requests.post(api_url, data=json.dumps(last_seen_payload), headers={"Content-Type": "application/json"})
+        result = response.json()
 
-def main():
-    proxies = get_zabbix_proxies()
-    create_excel_file(proxies)
-    print("Excel file 'zabbix_proxy_last_seen.xlsx' created successfully.")
+        if "result" in result and result["result"]:
+            last_seen = result["result"][0]["lastaccess"]
+            return f"Last seen time for proxy '{proxy_name}': {last_seen}"
+
+    return f"Proxy '{proxy_name}' not found or unable to retrieve last seen information."
 
 if __name__ == "__main__":
-    main()
+    # Replace these values with your Zabbix instance details
+    zabbix_url = "http://your_zabbix_server"
+    username = "your_username"
+    password = "your_password"
+
+    # Replace with the name of the Zabbix proxy you want to check
+    proxy_name = "your_proxy_name"
+
+    result = get_zabbix_proxy_last_seen(zabbix_url, username, password, proxy_name)
+    print(result)
