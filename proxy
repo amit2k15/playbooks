@@ -1,77 +1,62 @@
 import requests
 from requests.auth import HTTPBasicAuth
+import openpyxl
 from openpyxl import Workbook
-from datetime import datetime
 
-# Zabbix API details
+# Zabbix API credentials and URL
 zabbix_url = 'http://your_zabbix_server/api_jsonrpc.php'
 zabbix_user = 'your_username'
 zabbix_password = 'your_password'
 
-# Function to authenticate and get Zabbix API token
-def get_zabbix_token():
-    headers = {'Content-Type': 'application/json'}
-    data = {
-        'jsonrpc': '2.0',
-        'method': 'user.login',
-        'params': {
-            'user': zabbix_user,
-            'password': zabbix_password
-        },
-        'id': 1,
-    }
+# Zabbix API version
+zabbix_api_version = '4.0'  # Change this to match your Zabbix version
 
-    response = requests.post(zabbix_url, headers=headers, json=data)
-    return response.json()['result']
+# Create a session for API requests
+session = requests.Session()
+session.auth = HTTPBasicAuth(zabbix_user, zabbix_password)
+session.headers.update({'Content-Type': 'application/json'})
 
-# Function to get Zabbix proxy information
-def get_zabbix_proxy_info(token):
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {token}',
-    }
+def get_zabbix_proxies():
+    # Get Zabbix proxies
     data = {
         'jsonrpc': '2.0',
         'method': 'proxy.get',
         'params': {
-            'output': ['proxyid', 'host'],
-            'selectInterface': ['ip', 'useip'],
+            'output': 'extend',
+            'selectInterface': 'extend',
+            'selectHosts': 'extend'
         },
-        'id': 1,
+        'auth': None,
+        'id': 1
     }
 
-    response = requests.post(zabbix_url, headers=headers, json=data)
-    return response.json()['result']
+    response = session.post(zabbix_url, json=data)
+    proxies = response.json()['result']
 
-# Function to generate Excel file
-def generate_excel(proxy_info):
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = 'Zabbix Proxies'
+    return proxies
 
-    # Add headers
-    headers = ['Proxy ID', 'Proxy Host', 'Last Seen']
-    sheet.append(headers)
+def create_excel_file(proxies):
+    # Create Excel workbook and sheet
+    wb = Workbook()
+    ws = wb.active
 
-    for proxy in proxy_info:
-        proxy_id = proxy['proxyid']
-        proxy_host = proxy['host']
-        last_seen = proxy.get('lastaccess', 'N/A')
+    # Add headers to the sheet
+    headers = ['Proxy Name', 'Last Seen']
+    ws.append(headers)
 
-        sheet.append([proxy_id, proxy_host, last_seen])
+    # Add data to the sheet
+    for proxy in proxies:
+        proxy_name = proxy['host']
+        last_seen = proxy['lastaccess']
+        ws.append([proxy_name, last_seen])
 
-    # Save the workbook
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    excel_filename = f'zabbix_proxies_{timestamp}.xlsx'
-    workbook.save(excel_filename)
-    print(f'Excel file "{excel_filename}" created successfully.')
+    # Save the workbook to a file
+    wb.save('zabbix_proxy_last_seen.xlsx')
+
+def main():
+    proxies = get_zabbix_proxies()
+    create_excel_file(proxies)
+    print("Excel file 'zabbix_proxy_last_seen.xlsx' created successfully.")
 
 if __name__ == "__main__":
-    # Authenticate and get Zabbix API token
-    token = get_zabbix_token()
-
-    # Get Zabbix proxy information
-    proxy_info = get_zabbix_proxy_info(token)
-
-    # Generate Excel file
-    generate_excel(proxy_info)
+    main()
