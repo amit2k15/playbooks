@@ -1,0 +1,49 @@
+import openpyxl
+from pyzabbix import ZabbixAPI, ZabbixAPIException
+
+# Zabbix API configuration
+zabbix_url = 'http://your_zabbix_server/api_jsonrpc.php'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
+
+# Excel file configuration
+excel_file = 'zabbix_proxy_last_seen.xlsx'
+
+# Zabbix API connection
+try:
+    zapi = ZabbixAPI(zabbix_url)
+    zapi.login(zabbix_user, zabbix_password)
+except ZabbixAPIException as e:
+    print(f"Error connecting to Zabbix API: {e}")
+    exit()
+
+# Function to get Zabbix proxies and their last seen time
+def get_proxies_last_seen():
+    proxies = zapi.proxy.get(output=['hostid', 'host', 'lastaccess'])
+    return proxies
+
+# Function to create Excel file
+def create_excel_file(proxies):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Zabbix Proxies'
+
+    # Write headers
+    ws.append(['Proxy ID', 'Proxy Name', 'Last Seen'])
+
+    # Write data
+    for proxy in proxies:
+        ws.append([proxy['hostid'], proxy['host'], proxy['lastaccess']])
+
+    # Save Excel file
+    wb.save(excel_file)
+
+# Main execution
+try:
+    proxies_data = get_proxies_last_seen()
+    create_excel_file(proxies_data)
+    print(f"Excel file '{excel_file}' successfully created.")
+except ZabbixAPIException as e:
+    print(f"Error retrieving Zabbix proxy data: {e}")
+finally:
+    zapi.logout()
