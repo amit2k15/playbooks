@@ -1,83 +1,87 @@
 import requests
 import openpyxl
-from datetime import datetime
+from requests.auth import HTTPBasicAuth
 
-# Zabbix API configuration
-zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your_username'
-zabbix_password = 'your_password'
+# Zabbix API URL
+zabbix_api_url = 'http://your_zabbix_server/api_jsonrpc.php'
+
+# Zabbix API credentials
+username = 'your_username'
+password = 'your_password'
 
 # Function to authenticate and get Zabbix API token
-def get_zabbix_token():
+def get_zabbix_api_token():
     headers = {'Content-Type': 'application/json'}
     data = {
         'jsonrpc': '2.0',
         'method': 'user.login',
         'params': {
-            'user': zabbix_user,
-            'password': zabbix_password
+            'user': username,
+            'password': password
         },
         'id': 1
     }
 
-    response = requests.post(zabbix_url, json=data, headers=headers)
+    response = requests.post(zabbix_api_url, json=data, headers=headers)
     result = response.json()
-    return result.get('result')
+
+    if 'result' in result:
+        return result['result']
+    else:
+        raise Exception(f"Failed to authenticate: {result['error']['data']}")
 
 # Function to get Zabbix proxy information
-def get_proxy_info(token):
-    headers = {'Content-Type': 'application/json'}
+def get_zabbix_proxy_info(token):
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {token}'
+    }
     data = {
         'jsonrpc': '2.0',
         'method': 'proxy.get',
         'params': {
-            'output': ['proxyid', 'host', 'lastaccess'],
-            'selectInterface': ['ip']
+            'output': ['host', 'lastaccess']
         },
-        'auth': token,
         'id': 2
     }
 
-    response = requests.post(zabbix_url, json=data, headers=headers)
+    response = requests.post(zabbix_api_url, json=data, headers=headers)
     result = response.json()
-    return result.get('result')
 
-# Function to create Excel file with proxy information
-def create_excel(proxy_info):
+    if 'result' in result:
+        return result['result']
+    else:
+        raise Exception(f"Failed to get proxy information: {result['error']['data']}")
+
+# Function to generate Excel file
+def generate_excel(proxy_info):
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = 'Zabbix Proxies'
 
-    # Add headers
-    sheet.append(['Proxy ID', 'Host', 'IP Address', 'Last Seen'])
+    # Write headers
+    sheet['A1'] = 'Proxy Host'
+    sheet['B1'] = 'Last Seen'
 
-    # Add proxy information
-    for proxy in proxy_info:
-        proxy_id = proxy['proxyid']
-        host = proxy['host']
-        ip_address = proxy['interface']['ip']
-        last_seen_timestamp = proxy['lastaccess']
-        last_seen_datetime = datetime.utcfromtimestamp(last_seen_timestamp)
-
-        sheet.append([proxy_id, host, ip_address, last_seen_datetime])
+    # Write proxy information
+    for index, proxy in enumerate(proxy_info, start=2):
+        sheet.cell(row=index, column=1, value=proxy['host'])
+        sheet.cell(row=index, column=2, value=proxy['lastaccess'])
 
     # Save the Excel file
-    excel_file = 'zabbix_proxies.xlsx'
-    workbook.save(excel_file)
-    print(f'Excel file "{excel_file}" has been created.')
+    workbook.save('zabbix_proxies.xlsx')
 
 if __name__ == "__main__":
-    # Get Zabbix API token
-    zabbix_token = get_zabbix_token()
+    try:
+        # Get Zabbix API token
+        token = get_zabbix_api_token()
 
-    if zabbix_token:
         # Get Zabbix proxy information
-        proxy_info = get_proxy_info(zabbix_token)
+        proxy_info = get_zabbix_proxy_info(token)
 
-        if proxy_info:
-            # Create Excel file with proxy information
-            create_excel(proxy_info)
-        else:
-            print('Failed to retrieve proxy information from Zabbix.')
-    else:
-        print('Failed to authenticate with Zabbix API. Check your credentials.')
+        # Generate Excel file
+        generate_excel(proxy_info)
+
+        print("Excel file generated successfully.")
+    except Exception as e:
+        print(f"Error: {e}")
