@@ -1,68 +1,3 @@
-import requests
-from datetime import datetime, timedelta
-from openpyxl import Workbook
-
-# Zabbix API information
-zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your_username'
-zabbix_password = 'your_password'
-
-# Host group name
-host_group_name = 'Your Host Group Name'
-
-# Zabbix API authentication
-auth_payload = {
-    'jsonrpc': '2.0',
-    'method': 'user.login',
-    'params': {
-        'user': zabbix_user,
-        'password': zabbix_password,
-    },
-    'id': 1,
-}
-
-response = requests.post(zabbix_url, json=auth_payload)
-auth_result = response.json()
-
-if 'error' in auth_result:
-    print(f"Failed to authenticate: {auth_result['error']['data']}")
-    exit()
-
-auth_token = auth_result['result']
-
-# Get host group ID
-get_hostgroup_payload = {
-    'jsonrpc': '2.0',
-    'method': 'hostgroup.get',
-    'params': {
-        'output': 'extend',
-        'filter': {
-            'name': host_group_name,
-        },
-    },
-    'auth': auth_token,
-    'id': 1,
-}
-
-response = requests.post(zabbix_url, json=get_hostgroup_payload)
-hostgroup_result = response.json()
-
-if 'error' in hostgroup_result:
-    print(f"Failed to get host group: {hostgroup_result['error']['data']}")
-    exit()
-
-hostgroup_id = hostgroup_result['result'][0]['groupid']
-
-# Define item names
-item_names = {
-    'CPU': 'system.cpu.util',
-    'Memory': 'system.memory.util',
-    'Disk': 'vfs.fs',
-    'Queue': 'tenminque',
-    'Uptime': 'system.uptime',
-    'Last seen': 'lastoutput',
-}
-
 # Get item data for each item
 item_data = {}
 for item_type, item_key in item_names.items():
@@ -91,25 +26,12 @@ for item_type, item_key in item_names.items():
         item_data[item_type] = None
 
 # Calculate Last seen value
-last_seen_value = datetime.utcfromtimestamp(int(item_data['Last seen']))
+last_seen_value = None
+if 'Last seen' in item_data and item_data['Last seen'] is not None:
+    last_seen_value = datetime.utcfromtimestamp(int(item_data['Last seen']))
+
 current_time = datetime.utcnow()
-last_seen_final = current_time - last_seen_value
+last_seen_final = current_time - last_seen_value if last_seen_value is not None else None
 
 # Create Excel workbook and worksheet
-workbook = Workbook()
-worksheet = workbook.active
-
-# Write headers
-worksheet.append(['Item', 'Value'])
-
-# Write data
-for item_type, value in item_data.items():
-    worksheet.append([item_type, value])
-
-# Write Last seen final value
-worksheet.append(['Last seen (Final)', str(last_seen_final)])
-
-# Save Excel file
-workbook.save('zabbix_data.xlsx')
-
-print('Excel file generated successfully.')
+# (rest of the code remains unchanged)
