@@ -1,37 +1,9 @@
-# Get item data for each item
-item_data = {}
-for item_type, item_key in item_names.items():
-    get_item_payload = {
-        'jsonrpc': '2.0',
-        'method': 'item.get',
-        'params': {
-            'output': 'extend',
-            'hostgroupids': hostgroup_id,
-            'search': {'key_': item_key},
-        },
-        'auth': auth_token,
-        'id': 1,
-    }
-
-    response = requests.post(zabbix_url, json=get_item_payload)
-    item_result = response.json()
-
-    if 'error' in item_result:
-        print(f"Failed to get item {item_type}: {item_result['error']['data']}")
-        exit()
-
-    if item_result['result']:
-        item_data[item_type] = item_result['result'][0]['lastvalue']
-    else:
-        item_data[item_type] = None
-
 # Calculate Last seen value
-last_seen_value = None
-if 'Last seen' in item_data and item_data['Last seen'] is not None:
-    last_seen_value = datetime.utcfromtimestamp(int(item_data['Last seen']))
-
+last_seen_value = datetime.utcfromtimestamp(int(item_data['Last seen']))
 current_time = datetime.utcnow()
-last_seen_final = current_time - last_seen_value if last_seen_value is not None else None
 
-# Create Excel workbook and worksheet
-# (rest of the code remains unchanged)
+# Calculate Last seen final value
+if last_seen_value is not None:
+    last_seen_final = current_time - last_seen_value
+else:
+    last_seen_final = "N/A"
