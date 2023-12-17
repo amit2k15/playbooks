@@ -1,9 +1,146 @@
-# Calculate Last seen value
-last_seen_value = datetime.utcfromtimestamp(int(item_data['Last seen']))
-current_time = datetime.utcnow()
+import requests
+from datetime import datetime, timedelta
+import pandas as pd
 
-# Calculate Last seen final value
-if last_seen_value is not None:
-    last_seen_final = current_time - last_seen_value
-else:
-    last_seen_final = "N/A"
+# Zabbix API configuration
+zabbix_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Host group and item configurations
+host_group_name = 'YourHostGroupName'
+items = {
+    'CPU': 'system.cpu.util',
+    'Memory': 'system.memory.util',
+    'Disk': 'vfs.fs',
+    'Queue': 'tenminque',
+    'Uptime': 'system.uptime',
+    'Last seen': 'lastoutput'
+}
+
+# Zabbix API authentication
+auth_data = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_user,
+        'password': zabbix_password,
+    },
+    'id': 1,
+    'auth': None
+}
+
+response = requests.post(zabbix_url, json=auth_data)
+auth_result = response.json()
+
+if 'error' in auth_result:
+    print(f"Failed to authenticate: {auth_result['error']['data']}")
+    exit()
+
+auth_token = auth_result['result']
+
+# Get host group ID
+get_group_data = {
+    'jsonrpc': '2.0',
+    'method': 'hostgroup.get',
+    'params': {
+        'filter': {
+            'name': host_group_name
+        },
+        'output': 'extend'
+    },
+    'auth': auth_token,
+    'id': 2
+}
+
+response = requests.post(zabbix_url, json=get_group_data)
+group_result = response.json()
+
+if not group_result['result']:
+    print(f"Host group '{host_group_name}' not found.")
+    exit()
+
+host_group_id = group_result['result'][0]['groupid']
+
+# Get items data for the specified host group
+get_items_data = {
+    'jsonrpc': '2.0',
+    'method': 'item.get',
+    'params': {
+        'output': 'extend',
+        'hostgroupids': host_group_id,
+        'search': {
+            'key_': list(items.values())
+        },
+        'sortfield': 'name'
+    },
+    'auth': auth_token,
+    'id': 3
+}
+
+response = requests.post(zabbix_url, json=get_items_data)
+items_result = response.json()
+
+if not items_result['result']:
+    print(f"No items found for the specified host group.")
+    exit()
+
+# Create a DataFrame to store the data
+data = {'Host': [], 'Timestamp': []}
+for item_name, item_key in items.items():
+    data[item_name] = []
+
+# Fetch item data for each host in the host group
+get_history_data = {
+    'jsonrpc': '2.0',
+    'method': 'history.get',
+    'params': {
+        'output': 'extend',
+        'history': 0,  # Use '0' for numeric values
+        'sortfield': 'clock',
+        'sortorder': 'DESC',
+        'limit': 1
+    },
+    'auth': auth_token,
+    'id': 4
+}
+
+for item_result in items_result['result']:
+    host_name = item_result['host']
+    data['Host'].append(host_name)
+
+    for item_name, item_key in items.items():
+        item_id = item_result['itemid']
+        get_history_data['params']['itemids'] = item_id
+
+        response = requests.post(zabbix_url, json=get_history_data)
+        history_result = response.json()
+
+        if history_result['result']:
+            # Extract the latest value for the item
+            latest_value = history_result['result'][0]['value']
+            data[item_name].append(float(latest_value) if '.' in latest_value else int(latest_value))
+        else:
+            data[item_name].append(None)
+
+# Calculate 'Last seen' based on the provided formula
+current_time = datetime.now()
+last_seen_column = []
+for last_output in data['Last seen']:
+    if last_output is not None:
+        last_seen_time = datetime.fromtimestamp(int(last_output))
+        last_seen_difference = current_time - last_seen_time
+        last_seen_column.append(last_seen_difference.total_seconds())
+    else:
+        last_seen_column.append(None)
+
+data['Last seen'] = last_seen_column
+
+# Create a DataFrame from the collected data
+df = pd.DataFrame(data)
+
+# Save the DataFrame to an Excel file
+excel_file_path = 'zabbix_data.xlsx'
+df.to_excel(excel_file_path, index=False)
+
+print(f"Excel file '{excel_file_path}' has been generated.")
