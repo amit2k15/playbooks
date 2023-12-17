@@ -1,82 +1,115 @@
 import requests
-import json
+from datetime import datetime, timedelta
+from openpyxl import Workbook
 
-def get_zabbix_proxy_last_seen(zabbix_url, username, password, proxy_name):
-    # Zabbix API endpoint
-    api_url = f"{zabbix_url}/zabbix/api_jsonrpc.php"
+# Zabbix API information
+zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
-    # Zabbix API authentication payload
-    auth_payload = {
-        "jsonrpc": "2.0",
-        "method": "user.login",
-        "params": {
-            "user": username,
-            "password": password
+# Host group name
+host_group_name = 'Your Host Group Name'
+
+# Zabbix API authentication
+auth_payload = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_user,
+        'password': zabbix_password,
+    },
+    'id': 1,
+}
+
+response = requests.post(zabbix_url, json=auth_payload)
+auth_result = response.json()
+
+if 'error' in auth_result:
+    print(f"Failed to authenticate: {auth_result['error']['data']}")
+    exit()
+
+auth_token = auth_result['result']
+
+# Get host group ID
+get_hostgroup_payload = {
+    'jsonrpc': '2.0',
+    'method': 'hostgroup.get',
+    'params': {
+        'output': 'extend',
+        'filter': {
+            'name': host_group_name,
         },
-        "id": 1,
-        "auth": None
+    },
+    'auth': auth_token,
+    'id': 1,
+}
+
+response = requests.post(zabbix_url, json=get_hostgroup_payload)
+hostgroup_result = response.json()
+
+if 'error' in hostgroup_result:
+    print(f"Failed to get host group: {hostgroup_result['error']['data']}")
+    exit()
+
+hostgroup_id = hostgroup_result['result'][0]['groupid']
+
+# Define item names
+item_names = {
+    'CPU': 'system.cpu.util',
+    'Memory': 'system.memory.util',
+    'Disk': 'vfs.fs',
+    'Queue': 'tenminque',
+    'Uptime': 'system.uptime',
+    'Last seen': 'lastoutput',
+}
+
+# Get item data for each item
+item_data = {}
+for item_type, item_key in item_names.items():
+    get_item_payload = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': 'extend',
+            'hostgroupids': hostgroup_id,
+            'search': {'key_': item_key},
+        },
+        'auth': auth_token,
+        'id': 1,
     }
 
-    # Authenticate and get the authentication token
-    response = requests.post(api_url, data=json.dumps(auth_payload), headers={"Content-Type": "application/json"})
-    result = response.json()
-    auth_token = result["result"]
+    response = requests.post(zabbix_url, json=get_item_payload)
+    item_result = response.json()
 
-    # Zabbix API request to get proxy information
-    proxy_payload = {
-        "jsonrpc": "2.0",
-        "method": "proxy.get",
-        "params": {
-            "output": ["proxyid", "host"],
-            "selectInterface": ["ip"],
-            "filter": {
-                "host": proxy_name
-            }
-        },
-        "id": 2,
-        "auth": auth_token
-    }
+    if 'error' in item_result:
+        print(f"Failed to get item {item_type}: {item_result['error']['data']}")
+        exit()
 
-    # Get the proxy information
-    response = requests.post(api_url, data=json.dumps(proxy_payload), headers={"Content-Type": "application/json"})
-    result = response.json()
+    if item_result['result']:
+        item_data[item_type] = item_result['result'][0]['lastvalue']
+    else:
+        item_data[item_type] = None
 
-    # Check if the proxy was found
-    if "result" in result and result["result"]:
-        proxy_info = result["result"][0]
-        proxy_id = proxy_info["proxyid"]
+# Calculate Last seen value
+last_seen_value = datetime.utcfromtimestamp(int(item_data['Last seen']))
+current_time = datetime.utcnow()
+last_seen_final = current_time - last_seen_value
 
-        # Zabbix API request to get proxy last seen information
-        last_seen_payload = {
-            "jsonrpc": "2.0",
-            "method": "proxy.get",
-            "params": {
-                "output": "extend",
-                "selectInterface": ["ip"],
-                "proxyids": proxy_id
-            },
-            "id": 3,
-            "auth": auth_token
-        }
+# Create Excel workbook and worksheet
+workbook = Workbook()
+worksheet = workbook.active
 
-        # Get the last seen information for the proxy
-        response = requests.post(api_url, data=json.dumps(last_seen_payload), headers={"Content-Type": "application/json"})
-        result = response.json()
+# Write headers
+worksheet.append(['Item', 'Value'])
 
-        if "result" in result and result["result"]:
-            last_seen = result["result"][0]["lastaccess"]
-            return f"Last seen time for proxy '{proxy_name}': {last_seen}"
+# Write data
+for item_type, value in item_data.items():
+    worksheet.append([item_type, value])
 
-    return f"Proxy '{proxy_name}' not found or unable to retrieve last seen information."
+# Write Last seen final value
+worksheet.append(['Last seen (Final)', str(last_seen_final)])
 
-if __name__ == "__main__":
-    # Replace these values with your Zabbix instance details
-    zabbix_url = "http://your_zabbix_server"
-    username = "your_username"
-    password = "your_password"
+# Save Excel file
+workbook.save('zabbix_data.xlsx')
 
-    # Replace with the name of the Zabbix proxy you want to check
-    proxy_name = "your_proxy_name"
-
-    result = get_zabbix_proxy_last_seen(zabbix_url, username, password, proxy_name)
-    print(result)
+print('Excel file generated successfully.')
