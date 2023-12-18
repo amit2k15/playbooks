@@ -1,110 +1,122 @@
 import requests
+import json
 from datetime import datetime, timedelta
-import pandas as pd
+from openpyxl import Workbook
 
-# Zabbix API settings
-zabbix_api_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your_username'
-zabbix_password = 'your_password'
+# Zabbix API details
+zabbix_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
 
-# Host group and items
-host_group = 'YourHostGroup'
-cpu_item = 'system.cpu.util'
-memory_item = 'vm.memory.utilization'
-queue_item = 'zabbix[queue,10m]'
-uptime_item = 'system.uptime'
-last_seen_item = 'zabbix[proxy,{HOST.HOST},lastaccess'
+# Host group name
+host_group_name = 'Your Host Group Name'
 
 # Zabbix API authentication
-auth_data = {
+headers = {'Content-Type': 'application/json'}
+auth_payload = {
     'jsonrpc': '2.0',
     'method': 'user.login',
     'params': {
         'user': zabbix_user,
-        'password': zabbix_password
+        'password': zabbix_password,
     },
-    'id': 1
+    'id': 1,
 }
+auth_response = requests.post(zabbix_url, data=json.dumps(auth_payload), headers=headers)
+auth_result = auth_response.json()
 
-response = requests.post(zabbix_api_url, json=auth_data)
-auth_result = response.json()
-auth_token = auth_result.get('result')
+if 'result' in auth_result:
+    auth_token = auth_result['result']
+else:
+    print("Failed to authenticate.")
+    exit()
 
 # Get hosts in the specified host group
-host_data = {
+get_hosts_payload = {
     'jsonrpc': '2.0',
-    'method': 'host.get',
+    'method': 'hostgroup.get',
     'params': {
-        'output': ['hostid', 'name'],
-        'groupids': [host_group],
-        'selectInterfaces': ['interfaceid', 'ip']
+        'output': ['groupid'],
+        'select_hosts': ['hostid', 'host'],
+        'filter': {
+            'name': [host_group_name],
+        }
     },
     'auth': auth_token,
-    'id': 2
+    'id': 1,
 }
 
-response = requests.post(zabbix_api_url, json=host_data)
-hosts = response.json()['result']
+get_hosts_response = requests.post(zabbix_url, data=json.dumps(get_hosts_payload), headers=headers)
+get_hosts_result = get_hosts_response.json()
 
-# Prepare data for export
-data = {'Host': [], 'CPU (%)': [], 'Memory (%)': [], 'Queue': [], 'Uptime (days)': [], 'Last Seen (seconds)': []}
+if 'result' in get_hosts_result:
+    hosts = get_hosts_result['result'][0]['hosts']
+else:
+    print("Failed to get hosts in the specified group.")
+    exit()
 
+# Initialize Excel workbook and sheet
+workbook = Workbook()
+sheet = workbook.active
+
+# Write headers to the sheet
+headers = ['Host', 'CPU (%)', 'Memory (%)', 'Queue', 'Uptime (days)', 'Last Seen (seconds ago)']
+sheet.append(headers)
+
+# Function to convert seconds to days
+def seconds_to_days(seconds):
+    return seconds / (24 * 3600)
+
+# Function to calculate Last Seen in seconds
+def calculate_last_seen(last_seen):
+    current_time = datetime.now()
+    last_seen_time = datetime.fromtimestamp(last_seen)
+    return (current_time - last_seen_time).total_seconds()
+
+# Iterate through hosts and fetch data
 for host in hosts:
     host_id = host['hostid']
-    host_name = host['name']
+    host_name = host['host']
 
-    # Get item values
-    def get_item_value(item_key):
-        item_data = {
-            'jsonrpc': '2.0',
-            'method': 'item.get',
-            'params': {
-                'output': ['lastvalue'],
-                'hostids': host_id,
-                'search': {'key_': item_key}
-            },
-            'auth': auth_token,
-            'id': 3
-        }
-        response = requests.post(zabbix_api_url, json=item_data)
-        return response.json()['result'][0]['lastvalue']
+    # Fetch item values for each host
+    get_items_payload = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': ['key_', 'lastvalue'],
+            'hostids': host_id,
+            'search': {
+                'key_': ['system.cpu.util', 'vm.memory.utilization', 'zabbix[queue,10m]', 'system.uptime', 'zabbix[proxy,{},lastaccess'.format(host_name)]
+            }
+        },
+        'auth': auth_token,
+        'id': 1,
+    }
 
-    cpu_value = get_item_value(cpu_item)
-    memory_value = get_item_value(memory_item)
-    queue_value = get_item_value(queue_item)
-    uptime_value_seconds = float(get_item_value(uptime_item))
-    last_seen_value_seconds = float(get_item_value(last_seen_item))
+    get_items_response = requests.post(zabbix_url, data=json.dumps(get_items_payload), headers=headers)
+    get_items_result = get_items_response.json()
 
-    # Calculate Uptime in days
-    uptime_days = round(uptime_value_seconds / (24 * 3600), 2)
+    if 'result' in get_items_result:
+        data_row = [host_name]
+        for item in get_items_result['result']:
+            key = item['key_']
+            last_value = float(item['lastvalue'])
 
-    # Calculate Last Seen in seconds
-    current_time_seconds = datetime.now().timestamp()
-    last_seen_seconds = current_time_seconds - last_seen_value_seconds
+            if 'cpu' in key:
+                data_row.append(f"{last_value:.2f}")
+            elif 'memory' in key:
+                data_row.append(f"{last_value:.2f}")
+            elif 'queue' in key:
+                data_row.append(last_value)
+            elif 'uptime' in key:
+                uptime_days = seconds_to_days(last_value)
+                data_row.append(f"{uptime_days:.2f}")
+            elif 'lastaccess' in key:
+                last_seen_seconds_ago = calculate_last_seen(last_value)
+                data_row.append(int(last_seen_seconds_ago))
 
-    # Add data to the dictionary
-    data['Host'].append(host_name)
-    data['CPU (%)'].append(round(float(cpu_value), 2))
-    data['Memory (%)'].append(round(float(memory_value), 2))
-    data['Queue'].append(queue_value)
-    data['Uptime (days)'].append(uptime_days)
-    data['Last Seen (seconds)'].append(last_seen_seconds)
+        sheet.append(data_row)
 
-# Create a DataFrame from the data
-df = pd.DataFrame(data)
-
-# Export data to Excel
-excel_file = 'zabbix_data.xlsx'
-df.to_excel(excel_file, index=False)
-print(f'Data exported to {excel_file}')
-
-# Logout from Zabbix API
-logout_data = {
-    'jsonrpc': '2.0',
-    'method': 'user.logout',
-    'params': [],
-    'auth': auth_token,
-    'id': 4
-}
-
-requests.post(zabbix_api_url, json=logout_data)
+# Save the workbook to a file
+workbook.save('zabbix_data.xlsx')
+print("Data exported to zabbix_data.xlsx")
