@@ -1,122 +1,69 @@
-import requests
-import json
-from datetime import datetime, timedelta
+import datetime
+from pyzabbix import ZabbixAPI
 from openpyxl import Workbook
 
-# Zabbix API details
-zabbix_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your-username'
-zabbix_password = 'your-password'
+# Zabbix server configuration
+zabbix_url = 'http://your_zabbix_server/zabbix'
+zabbix_user = 'your_zabbix_user'
+zabbix_password = 'your_zabbix_password'
 
 # Host group name
 host_group_name = 'Your Host Group Name'
 
-# Zabbix API authentication
-headers = {'Content-Type': 'application/json'}
-auth_payload = {
-    'jsonrpc': '2.0',
-    'method': 'user.login',
-    'params': {
-        'user': zabbix_user,
-        'password': zabbix_password,
-    },
-    'id': 1,
-}
-auth_response = requests.post(zabbix_url, data=json.dumps(auth_payload), headers=headers)
-auth_result = auth_response.json()
+# Connect to Zabbix API
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
 
-if 'result' in auth_result:
-    auth_token = auth_result['result']
-else:
-    print("Failed to authenticate.")
+# Get host group ID
+host_group = zapi.hostgroup.get(filter={'name': host_group_name})
+if not host_group:
+    print(f"Host group '{host_group_name}' not found.")
     exit()
+
+host_group_id = host_group[0]['groupid']
 
 # Get hosts in the specified host group
-get_hosts_payload = {
-    'jsonrpc': '2.0',
-    'method': 'hostgroup.get',
-    'params': {
-        'output': ['groupid'],
-        'select_hosts': ['hostid', 'host'],
-        'filter': {
-            'name': [host_group_name],
-        }
-    },
-    'auth': auth_token,
-    'id': 1,
-}
+hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'host'])
 
-get_hosts_response = requests.post(zabbix_url, data=json.dumps(get_hosts_payload), headers=headers)
-get_hosts_result = get_hosts_response.json()
+# Create an Excel workbook
+wb = Workbook()
+ws = wb.active
 
-if 'result' in get_hosts_result:
-    hosts = get_hosts_result['result'][0]['hosts']
-else:
-    print("Failed to get hosts in the specified group.")
-    exit()
+# Write headers to the Excel sheet
+ws.append(['Host', 'CPU (%)', 'Memory (%)', 'Queue', 'Uptime (days)', 'Last Seen (s)'])
 
-# Initialize Excel workbook and sheet
-workbook = Workbook()
-sheet = workbook.active
+# Get current time
+current_time = datetime.datetime.now()
 
-# Write headers to the sheet
-headers = ['Host', 'CPU (%)', 'Memory (%)', 'Queue', 'Uptime (days)', 'Last Seen (seconds ago)']
-sheet.append(headers)
-
-# Function to convert seconds to days
-def seconds_to_days(seconds):
-    return seconds / (24 * 3600)
-
-# Function to calculate Last Seen in seconds
-def calculate_last_seen(last_seen):
-    current_time = datetime.now()
-    last_seen_time = datetime.fromtimestamp(last_seen)
-    return (current_time - last_seen_time).total_seconds()
-
-# Iterate through hosts and fetch data
 for host in hosts:
     host_id = host['hostid']
     host_name = host['host']
 
-    # Fetch item values for each host
-    get_items_payload = {
-        'jsonrpc': '2.0',
-        'method': 'item.get',
-        'params': {
-            'output': ['key_', 'lastvalue'],
-            'hostids': host_id,
-            'search': {
-                'key_': ['system.cpu.util', 'vm.memory.utilization', 'zabbix[queue,10m]', 'system.uptime', 'zabbix[proxy,{},lastaccess'.format(host_name)]
-            }
-        },
-        'auth': auth_token,
-        'id': 1,
-    }
+    # Fetch data from Zabbix for each item
+    cpu_data = zapi.item.get(hostids=host_id, search={'key_': 'system.cpu.util'}, output='extend')
+    memory_data = zapi.item.get(hostids=host_id, search={'key_': 'vm.memory.utilization'}, output='extend')
+    queue_data = zapi.item.get(hostids=host_id, search={'key_': 'zabbix[queue,10m]'}, output='extend')
+    uptime_data = zapi.item.get(hostids=host_id, search={'key_': 'system.uptime'}, output='extend')
+    last_seen_data = zapi.item.get(hostids=host_id, search={'key_': f'zabbix[proxy,{host_name},lastaccess]'}, output='extend')
 
-    get_items_response = requests.post(zabbix_url, data=json.dumps(get_items_payload), headers=headers)
-    get_items_result = get_items_response.json()
+    # Extract values from Zabbix item data
+    cpu_value = float(cpu_data[0]['lastvalue'])
+    memory_value = float(memory_data[0]['lastvalue'])
+    queue_value = queue_data[0]['lastvalue']
+    uptime_seconds = float(uptime_data[0]['lastvalue'])
+    last_seen_seconds = float(last_seen_data[0]['lastvalue'])
 
-    if 'result' in get_items_result:
-        data_row = [host_name]
-        for item in get_items_result['result']:
-            key = item['key_']
-            last_value = float(item['lastvalue'])
+    # Calculate uptime in days
+    uptime_days = uptime_seconds / (24 * 60 * 60)
 
-            if 'cpu' in key:
-                data_row.append(f"{last_value:.2f}")
-            elif 'memory' in key:
-                data_row.append(f"{last_value:.2f}")
-            elif 'queue' in key:
-                data_row.append(last_value)
-            elif 'uptime' in key:
-                uptime_days = seconds_to_days(last_value)
-                data_row.append(f"{uptime_days:.2f}")
-            elif 'lastaccess' in key:
-                last_seen_seconds_ago = calculate_last_seen(last_value)
-                data_row.append(int(last_seen_seconds_ago))
+    # Calculate last seen in seconds
+    last_seen_diff = (current_time - datetime.datetime.fromtimestamp(last_seen_seconds)).total_seconds()
 
-        sheet.append(data_row)
+    # Write data to Excel sheet
+    ws.append([host_name, round(cpu_value, 2), round(memory_value, 2), queue_value, round(uptime_days, 2), last_seen_diff])
 
-# Save the workbook to a file
-workbook.save('zabbix_data.xlsx')
-print("Data exported to zabbix_data.xlsx")
+# Save the Excel file
+wb.save('zabbix_data.xlsx')
+
+# Logout from Zabbix API
+zapi.user.logout()
