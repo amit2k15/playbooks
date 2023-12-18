@@ -1,71 +1,66 @@
-import time
+import openpyxl
 from datetime import datetime, timedelta
-from pyzabbix import ZabbixAPI
-from openpyxl import Workbook
+from zabbix_api import ZabbixAPI
 
-# Zabbix server configuration
-zabbix_server = 'http://your_zabbix_server_url'
-zabbix_user = 'your_zabbix_username'
-zabbix_password = 'your_zabbix_password'
+# Zabbix server information
+zabbix_server = 'http://your-zabbix-server.com/zabbix'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
 
-# Host group and item names
+# Host group name
 host_group_name = 'YourHostGroupName'
-item_names = {
-    'CPU': 'system.cpu.util',
-    'Memory': 'vm.memory.utilization',
-    'Queue': 'zabbix[queue,10m]',
-    'Uptime': 'system.uptime',
-    'LastSeen': 'zabbix[proxy,{HOST.HOST},lastaccess]'
-}
 
 # Connect to Zabbix API
-zapi = ZabbixAPI(zabbix_server)
-zapi.login(zabbix_user, zabbix_password)
+zabbix = ZabbixAPI(zabbix_server)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get host group ID
+host_group = zabbix.hostgroup.get(filter={'name': host_group_name})
+host_group_id = host_group[0]['groupid']
 
 # Get hosts in the specified host group
-hostgroup = zapi.hostgroup.get(filter={'name': host_group_name}, selectHosts=['hostid', 'host'])
-hosts = hostgroup[0]['hosts']
+hosts = zabbix.host.get(groupids=host_group_id, output=['hostid', 'host'])
 
-# Create Excel workbook and sheet
-workbook = Workbook()
-sheet = workbook.active
+# Create Excel workbook and worksheet
+workbook = openpyxl.Workbook()
+worksheet = workbook.active
+worksheet.append(['Host', 'CPU Utilization (%)', 'Memory Utilization (%)', 'Queue', 'Uptime (days)', 'Last Seen (seconds)'])
 
-# Write header
-header = ['Host'] + list(item_names.keys())
-sheet.append(header)
-
-# Fetch data for each host
+# Iterate through hosts
 for host in hosts:
     host_id = host['hostid']
     host_name = host['host']
 
-    # Fetch item values for the host
-    item_values = {}
-    for item_key, item_name in item_names.items():
-        item = zapi.item.get(hostids=host_id, filter={'key_': item_name}, output=['lastvalue'])
-        item_values[item_key] = item[0]['lastvalue']
+    # Get CPU Utilization
+    cpu_util = zabbix.item.get(hostids=host_id, search={'key_': 'system.cpu.util'}, output=['lastvalue'])[0]['lastvalue']
+    cpu_util = round(float(cpu_util), 2) if cpu_util else None
+
+    # Get Memory Utilization
+    memory_util = zabbix.item.get(hostids=host_id, search={'key_': 'vm.memory.utilization'}, output=['lastvalue'])[0]['lastvalue']
+    memory_util = round(float(memory_util), 2) if memory_util else None
+
+    # Get Queue
+    queue = zabbix.item.get(hostids=host_id, search={'key_': 'zabbix[queue,10m]'}, output=['lastvalue'])[0]['lastvalue']
+
+    # Get Uptime
+    uptime_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'system.uptime'}, output=['lastvalue'])[0]['lastvalue']
+    uptime_days = round(float(uptime_seconds) / (24 * 60 * 60), 2) if uptime_seconds else None
+
+    # Get Last Seen
+    last_seen_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'zabbix[proxy,{HOST.HOST},lastaccess]'}, output=['lastvalue'])[0]['lastvalue']
+    last_seen_seconds = float(last_seen_seconds) if last_seen_seconds else None
 
     # Calculate Last Seen in seconds
-    last_seen_timestamp = int(item_values['LastSeen'])
-    current_time = int(time.time())
-    last_seen_seconds = current_time - last_seen_timestamp
+    current_time_seconds = datetime.now().timestamp()
+    last_seen_difference = current_time_seconds - last_seen_seconds if last_seen_seconds else None
 
-    # Calculate Uptime in days
-    uptime_seconds = int(item_values['Uptime'])
-    uptime_days = uptime_seconds / (24 * 3600)
+    # Append data to the worksheet
+    worksheet.append([host_name, cpu_util, memory_util, queue, uptime_days, last_seen_difference])
 
-    # Format CPU and Memory values to two decimal places
-    item_values['CPU'] = f'{float(item_values["CPU"]):.2f}'
-    item_values['Memory'] = f'{float(item_values["Memory"]):.2f}'
-
-    # Write data to Excel sheet
-    row_data = [host_name] + list(item_values.values())
-    sheet.append(row_data)
-
-# Save the Excel file
-output_file = f'{host_group_name}_data.xlsx'
-workbook.save(output_file)
-print(f'Data has been saved to {output_file}')
+# Save Excel file
+excel_filename = f'{host_group_name}_report.xlsx'
+workbook.save(excel_filename)
+print(f'Data has been saved to {excel_filename}')
 
 # Logout from Zabbix API
-zapi.user.logout()
+zabbix.user.logout()
