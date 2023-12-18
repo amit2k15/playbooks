@@ -1,104 +1,117 @@
 import requests
-from openpyxl import Workbook
+import pandas as pd
+from datetime import datetime, timedelta
 
 # Zabbix API configuration
-zabbix_url = "http://your-zabbix-server/api_jsonrpc.php"
-zabbix_user = "your-zabbix-username"
-zabbix_password = "your-zabbix-password"
+zabbix_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your-zabbix-username'
+zabbix_password = 'your-zabbix-password'
 
-# Specify the host group name you are interested in
-host_group_name = "YourHostGroupName"
+# Host group name
+host_group_name = 'Your Host Group Name'
 
-# Zabbix item keys
-item_keys = {
-    "CPU": "system.cpu.util",
-    "Memory": "vm.memory.utilization",
-    "Queue": "zabbix[queue,10m]",
-    "Uptime": "system.uptime",
-    "Last Seen": "zabbix[proxy,{HOST.HOST},lastaccess]"
-}
-
-def get_zabbix_data(host_id, item_key):
+# Zabbix API authentication
+def authenticate():
+    headers = {'Content-Type': 'application/json'}
     data = {
-        "jsonrpc": "2.0",
-        "method": "item.get",
-        "params": {
-            "output": ["lastvalue"],
-            "hostids": host_id,
-            "search": {"key_": item_key}
+        'jsonrpc': '2.0',
+        'method': 'user.login',
+        'params': {
+            'user': zabbix_user,
+            'password': zabbix_password,
         },
-        "auth": zabbix_auth_token,
-        "id": 1
+        'id': 1,
     }
 
-    response = requests.post(zabbix_url, json=data)
-    result = response.json()["result"]
-    return result[0]["lastvalue"] if result else None
+    response = requests.post(zabbix_url, headers=headers, json=data)
+    return response.json()['result']
 
-# Authenticate and get the Zabbix API token
-auth_data = {
-    "jsonrpc": "2.0",
-    "method": "user.login",
-    "params": {
-        "user": zabbix_user,
-        "password": zabbix_password
-    },
-    "id": 1,
-}
+# Get hosts in a specific host group
+def get_hosts_in_group(group_name, auth_token):
+    headers = {'Content-Type': 'application/json'}
+    data = {
+        'jsonrpc': '2.0',
+        'method': 'hostgroup.get',
+        'params': {
+            'output': ['groupid'],
+            'filter': {'name': group_name},
+        },
+        'auth': auth_token,
+        'id': 1,
+    }
 
-response = requests.post(zabbix_url, json=auth_data)
-zabbix_auth_token = response.json()["result"]
+    response = requests.post(zabbix_url, headers=headers, json=data)
+    group_id = response.json()['result'][0]['groupid']
 
-# Get host group ID
-get_hostgroup_data = {
-    "jsonrpc": "2.0",
-    "method": "hostgroup.get",
-    "params": {
-        "output": "extend",
-        "filter": {"name": [host_group_name]}
-    },
-    "auth": zabbix_auth_token,
-    "id": 1
-}
+    data = {
+        'jsonrpc': '2.0',
+        'method': 'host.get',
+        'params': {
+            'output': ['hostid', 'host'],
+            'groupids': group_id,
+        },
+        'auth': auth_token,
+        'id': 1,
+    }
 
-response = requests.post(zabbix_url, json=get_hostgroup_data)
-host_group_id = response.json()["result"][0]["groupid"]
+    response = requests.post(zabbix_url, headers=headers, json=data)
+    return response.json()['result']
 
-# Get hosts in the specified host group
-get_hosts_data = {
-    "jsonrpc": "2.0",
-    "method": "host.get",
-    "params": {
-        "output": ["hostid", "name"],
-        "groupids": host_group_id
-    },
-    "auth": zabbix_auth_token,
-    "id": 1
-}
+# Get item values for a specific host
+def get_item_values(host_id, item_key, auth_token):
+    headers = {'Content-Type': 'application/json'}
+    data = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': ['lastvalue'],
+            'hostids': host_id,
+            'search': {'key_': item_key},
+        },
+        'auth': auth_token,
+        'id': 1,
+    }
 
-response = requests.post(zabbix_url, json=get_hosts_data)
-hosts = response.json()["result"]
+    response = requests.post(zabbix_url, headers=headers, json=data)
+    return response.json()['result'][0]['lastvalue']
 
-# Create an Excel workbook and add a worksheet
-workbook = Workbook()
-worksheet = workbook.active
+# Calculate last seen
+def calculate_last_seen(last_seen):
+    last_seen_datetime = datetime.fromtimestamp(int(last_seen))
+    current_time = datetime.now()
+    last_seen_delta = current_time - last_seen_datetime
+    return last_seen_delta
 
-# Write headers
-headers = ["Host", "CPU", "Memory", "Queue", "Uptime", "Last Seen"]
-worksheet.append(headers)
+# Main script
+auth_token = authenticate()
+hosts = get_hosts_in_group(host_group_name, auth_token)
 
-# Fetch and write data for each host
+data = []
 for host in hosts:
-    host_id = host["hostid"]
-    row_data = [host["name"]]
-    for key in headers[1:]:
-        item_key = item_keys[key]
-        value = get_zabbix_data(host_id, item_key)
-        row_data.append(value)
-    worksheet.append(row_data)
+    host_id = host['hostid']
+    host_name = host['host']
 
-# Save the workbook to a file
-excel_file = "zabbix_data.xlsx"
-workbook.save(excel_file)
+    cpu_utilization = get_item_values(host_id, 'system.cpu.util', auth_token)
+    memory_utilization = get_item_values(host_id, 'vm.memory.utilization', auth_token)
+    queue = get_item_values(host_id, 'zabbix[queue,10m]', auth_token)
+    uptime = get_item_values(host_id, 'system.uptime', auth_token)
+    last_seen = get_item_values(host_id, 'zabbix[proxy,{HOST.HOST},lastaccess]', auth_token)
 
-print(f"Zabbix data saved to {excel_file}")
+    last_seen_delta = calculate_last_seen(last_seen)
+
+    data.append({
+        'Host': host_name,
+        'CPU Utilization': cpu_utilization,
+        'Memory Utilization': memory_utilization,
+        'Queue': queue,
+        'Uptime': uptime,
+        'Last Seen': last_seen_delta,
+    })
+
+# Create a Pandas DataFrame
+df = pd.DataFrame(data)
+
+# Save to Excel file
+excel_file = 'zabbix_data.xlsx'
+df.to_excel(excel_file, index=False)
+print(f'Data saved to {excel_file}')
