@@ -1,127 +1,100 @@
 import requests
-from datetime import datetime, timedelta
-from openpyxl import Workbook
+import pandas as pd
 
-# Zabbix API settings
-zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your_zabbix_username'
-zabbix_password = 'your_zabbix_password'
+# Zabbix API configuration
+zabbix_api_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
+zabbix_username = 'your-username'
+zabbix_password = 'your-password'
 
-# Host group and item keys
+# Zabbix item keys
+cpu_key = 'system.cpu.util'
+memory_key = 'vm.memory.utilization'
+queue_key = 'zabbix[queue,10m]'
+uptime_key = 'system.uptime'
+last_seen_key = 'zabbix[proxy,{HOST.HOST},lastaccess]'
+
+# Zabbix host group
 host_group_name = 'YourHostGroupName'
-item_keys = {
-    'CPU': 'system.cpu.util',
-    'Memory': 'vm.memory.utilization',
-    'Queue': 'zabbix[queue,10m]',
-    'Uptime': 'system.uptime',
-    'LastSeen': 'zabbix[proxy,{HOST.HOST},lastaccess]'
-}
 
-# Calculate last seen time
-current_time = datetime.now()
-time_threshold = current_time - timedelta(hours=1)  # Change the threshold as needed
-
-# Zabbix API authentication
-auth_data = {
-    'jsonrpc': '2.0',
-    'method': 'user.login',
-    'params': {
-        'user': zabbix_user,
-        'password': zabbix_password
-    },
-    'id': 1
-}
-
-response = requests.post(zabbix_url, json=auth_data)
-auth_result = response.json()
-
-if 'error' in auth_result:
-    print(f"Zabbix authentication failed: {auth_result['error']['data']}")
-    exit()
-
-auth_token = auth_result['result']
-
-# Get host group ID
-get_group_data = {
-    'jsonrpc': '2.0',
-    'method': 'hostgroup.get',
-    'params': {
-        'output': 'extend',
-        'filter': {'name': host_group_name}
-    },
-    'auth': auth_token,
-    'id': 1
-}
-
-response = requests.post(zabbix_url, json=get_group_data)
-group_result = response.json()
-
-if not group_result['result']:
-    print(f"Host group '{host_group_name}' not found.")
-    exit()
-
-group_id = group_result['result'][0]['groupid']
-
-# Get hosts in the host group
-get_hosts_data = {
-    'jsonrpc': '2.0',
-    'method': 'host.get',
-    'params': {
-        'output': 'extend',
-        'groupids': group_id,
-        'selectInterfaces': ['host']
-    },
-    'auth': auth_token,
-    'id': 1
-}
-
-response = requests.post(zabbix_url, json=get_hosts_data)
-hosts_result = response.json()
-
-if not hosts_result['result']:
-    print(f"No hosts found in the group '{host_group_name}'.")
-    exit()
-
-# Create Excel workbook and sheet
-wb = Workbook()
-ws = wb.active
-ws.append(['Host', 'CPU', 'Memory', 'Queue', 'Uptime', 'Last Seen'])
-
-# Fetch item data for each host
-for host in hosts_result['result']:
-    host_name = host['host']
-    host_id = host['hostid']
-
-    item_data = {
+def get_zabbix_api_token(api_url, username, password):
+    headers = {'Content-Type': 'application/json'}
+    payload = {
         'jsonrpc': '2.0',
-        'method': 'item.get',
-        'params': {
-            'output': 'extend',
-            'hostids': host_id,
-            'search': {'key_': list(item_keys.values())}
-        },
-        'auth': auth_token,
-        'id': 1
+        'method': 'user.login',
+        'params': {'user': username, 'password': password},
+        'id': 1,
     }
 
-    response = requests.post(zabbix_url, json=item_data)
-    item_result = response.json()
+    response = requests.post(api_url, json=payload, headers=headers)
+    result = response.json()
+    return result['result']
 
-    if 'result' in item_result and item_result['result']:
-        item_values = {key: None for key in item_keys}
-        for item in item_result['result']:
-            key = item['key_']
-            value = item['lastvalue']
-            item_values[key] = value
+def get_host_ids_in_group(api_url, token, group_name):
+    headers = {'Content-Type': 'application/json'}
+    payload = {
+        'jsonrpc': '2.0',
+        'method': 'hostgroup.get',
+        'params': {'output': 'extend', 'filter': {'name': group_name}},
+        'auth': token,
+        'id': 1,
+    }
 
-        # Check if the last seen time is within the threshold
-        last_seen_str = item_values['zabbix[proxy,{HOST.HOST},lastaccess]']
-        last_seen_time = datetime.fromtimestamp(int(last_seen_str))
-        if last_seen_time >= time_threshold:
-            ws.append([host_name, item_values['system.cpu.util'], item_values['vm.memory.utilization'],
-                       item_values['zabbix[queue,10m]'], item_values['system.uptime'], last_seen_time])
+    response = requests.post(api_url, json=payload, headers=headers)
+    result = response.json()
+    if result.get('result'):
+        return [host['hostid'] for host in result['result'][0]['hosts']]
+    else:
+        return []
 
-# Save the Excel file
-wb.save('zabbix_data.xlsx')
+def get_host_item_value(api_url, token, host_id, item_key):
+    headers = {'Content-Type': 'application/json'}
+    payload = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {'output': 'extend', 'hostids': host_id, 'search': {'key_': item_key}},
+        'auth': token,
+        'id': 1,
+    }
 
-print("Data has been fetched and saved to 'zabbix_data.xlsx'.")
+    response = requests.post(api_url, json=payload, headers=headers)
+    result = response.json()
+    if result.get('result'):
+        return result['result'][0]['lastvalue']
+    else:
+        return None
+
+def main():
+    # Get Zabbix API token
+    token = get_zabbix_api_token(zabbix_api_url, zabbix_username, zabbix_password)
+
+    # Get host ids in the specified host group
+    host_ids = get_host_ids_in_group(zabbix_api_url, token, host_group_name)
+
+    # Prepare data for Excel
+    data = {
+        'Host': [],
+        'CPU': [],
+        'Memory': [],
+        'Queue': [],
+        'Uptime': [],
+        'Last Seen': [],
+    }
+
+    for host_id in host_ids:
+        data['Host'].append(host_id)
+        data['CPU'].append(get_host_item_value(zabbix_api_url, token, host_id, cpu_key))
+        data['Memory'].append(get_host_item_value(zabbix_api_url, token, host_id, memory_key))
+        data['Queue'].append(get_host_item_value(zabbix_api_url, token, host_id, queue_key))
+        data['Uptime'].append(get_host_item_value(zabbix_api_url, token, host_id, uptime_key))
+        data['Last Seen'].append(get_host_item_value(zabbix_api_url, token, host_id, last_seen_key))
+
+    # Create a Pandas DataFrame
+    df = pd.DataFrame(data)
+
+    # Save the DataFrame to an Excel file
+    excel_filename = 'zabbix_data.xlsx'
+    df.to_excel(excel_filename, index=False)
+    print(f'Data saved to {excel_filename}')
+
+if __name__ == '__main__':
+    main()
