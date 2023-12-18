@@ -1,22 +1,25 @@
 import requests
 from datetime import datetime, timedelta
-import pandas as pd
+from openpyxl import Workbook
 
-# Zabbix API configuration
-zabbix_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your-username'
-zabbix_password = 'your-password'
+# Zabbix API settings
+zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your_zabbix_username'
+zabbix_password = 'your_zabbix_password'
 
-# Host group and item configurations
+# Host group and item keys
 host_group_name = 'YourHostGroupName'
-items = {
+item_keys = {
     'CPU': 'system.cpu.util',
-    'Memory': 'system.memory.util',
-    'Disk': 'vfs.fs',
-    'Queue': 'tenminque',
+    'Memory': 'vm.memory.utilization',
+    'Queue': 'zabbix[queue,10m]',
     'Uptime': 'system.uptime',
-    'Last seen': 'lastoutput'
+    'LastSeen': 'zabbix[proxy,{HOST.HOST},lastaccess]'
 }
+
+# Calculate last seen time
+current_time = datetime.now()
+time_threshold = current_time - timedelta(hours=1)  # Change the threshold as needed
 
 # Zabbix API authentication
 auth_data = {
@@ -24,17 +27,16 @@ auth_data = {
     'method': 'user.login',
     'params': {
         'user': zabbix_user,
-        'password': zabbix_password,
+        'password': zabbix_password
     },
-    'id': 1,
-    'auth': None
+    'id': 1
 }
 
 response = requests.post(zabbix_url, json=auth_data)
 auth_result = response.json()
 
 if 'error' in auth_result:
-    print(f"Failed to authenticate: {auth_result['error']['data']}")
+    print(f"Zabbix authentication failed: {auth_result['error']['data']}")
     exit()
 
 auth_token = auth_result['result']
@@ -44,13 +46,11 @@ get_group_data = {
     'jsonrpc': '2.0',
     'method': 'hostgroup.get',
     'params': {
-        'filter': {
-            'name': host_group_name
-        },
-        'output': 'extend'
+        'output': 'extend',
+        'filter': {'name': host_group_name}
     },
     'auth': auth_token,
-    'id': 2
+    'id': 1
 }
 
 response = requests.post(zabbix_url, json=get_group_data)
@@ -60,87 +60,68 @@ if not group_result['result']:
     print(f"Host group '{host_group_name}' not found.")
     exit()
 
-host_group_id = group_result['result'][0]['groupid']
+group_id = group_result['result'][0]['groupid']
 
-# Get items data for the specified host group
-get_items_data = {
+# Get hosts in the host group
+get_hosts_data = {
     'jsonrpc': '2.0',
-    'method': 'item.get',
+    'method': 'host.get',
     'params': {
         'output': 'extend',
-        'hostgroupids': host_group_id,
-        'search': {
-            'key_': list(items.values())
-        },
-        'sortfield': 'name'
+        'groupids': group_id,
+        'selectInterfaces': ['host']
     },
     'auth': auth_token,
-    'id': 3
+    'id': 1
 }
 
-response = requests.post(zabbix_url, json=get_items_data)
-items_result = response.json()
+response = requests.post(zabbix_url, json=get_hosts_data)
+hosts_result = response.json()
 
-if not items_result['result']:
-    print(f"No items found for the specified host group.")
+if not hosts_result['result']:
+    print(f"No hosts found in the group '{host_group_name}'.")
     exit()
 
-# Create a DataFrame to store the data
-data = {'Host': [], 'Timestamp': []}
-for item_name, item_key in items.items():
-    data[item_name] = []
+# Create Excel workbook and sheet
+wb = Workbook()
+ws = wb.active
+ws.append(['Host', 'CPU', 'Memory', 'Queue', 'Uptime', 'Last Seen'])
 
-# Fetch item data for each host in the host group
-get_history_data = {
-    'jsonrpc': '2.0',
-    'method': 'history.get',
-    'params': {
-        'output': 'extend',
-        'history': 0,  # Use '0' for numeric values
-        'sortfield': 'clock',
-        'sortorder': 'DESC',
-        'limit': 1
-    },
-    'auth': auth_token,
-    'id': 4
-}
+# Fetch item data for each host
+for host in hosts_result['result']:
+    host_name = host['host']
+    host_id = host['hostid']
 
-for item_result in items_result['result']:
-    host_name = item_result['host']
-    data['Host'].append(host_name)
+    item_data = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': 'extend',
+            'hostids': host_id,
+            'search': {'key_': list(item_keys.values())}
+        },
+        'auth': auth_token,
+        'id': 1
+    }
 
-    for item_name, item_key in items.items():
-        item_id = item_result['itemid']
-        get_history_data['params']['itemids'] = item_id
+    response = requests.post(zabbix_url, json=item_data)
+    item_result = response.json()
 
-        response = requests.post(zabbix_url, json=get_history_data)
-        history_result = response.json()
+    if 'result' in item_result and item_result['result']:
+        item_values = {key: None for key in item_keys}
+        for item in item_result['result']:
+            key = item['key_']
+            value = item['lastvalue']
+            item_values[key] = value
 
-        if history_result['result']:
-            # Extract the latest value for the item
-            latest_value = history_result['result'][0]['value']
-            data[item_name].append(float(latest_value) if '.' in latest_value else int(latest_value))
-        else:
-            data[item_name].append(None)
+        # Check if the last seen time is within the threshold
+        last_seen_str = item_values['zabbix[proxy,{HOST.HOST},lastaccess]']
+        last_seen_time = datetime.fromtimestamp(int(last_seen_str))
+        if last_seen_time >= time_threshold:
+            ws.append([host_name, item_values['system.cpu.util'], item_values['vm.memory.utilization'],
+                       item_values['zabbix[queue,10m]'], item_values['system.uptime'], last_seen_time])
 
-# Calculate 'Last seen' based on the provided formula
-current_time = datetime.now()
-last_seen_column = []
-for last_output in data['Last seen']:
-    if last_output is not None:
-        last_seen_time = datetime.fromtimestamp(int(last_output))
-        last_seen_difference = current_time - last_seen_time
-        last_seen_column.append(last_seen_difference.total_seconds())
-    else:
-        last_seen_column.append(None)
+# Save the Excel file
+wb.save('zabbix_data.xlsx')
 
-data['Last seen'] = last_seen_column
-
-# Create a DataFrame from the collected data
-df = pd.DataFrame(data)
-
-# Save the DataFrame to an Excel file
-excel_file_path = 'zabbix_data.xlsx'
-df.to_excel(excel_file_path, index=False)
-
-print(f"Excel file '{excel_file_path}' has been generated.")
+print("Data has been fetched and saved to 'zabbix_data.xlsx'.")
