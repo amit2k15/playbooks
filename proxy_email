@@ -1,141 +1,195 @@
 import requests
 import smtplib
 from email.mime.text import MIMEText
-from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
 
 # Zabbix API configuration
-zabbix_url = 'https://your-zabbix-server/zabbix/api_jsonrpc.php'
-zabbix_user = 'your-zabbix-username'
-zabbix_password = 'your-zabbix-password'
-zabbix_host_group = 'Your Host Group'
+zabbix_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your_zabbix_user'
+zabbix_password = 'your_zabbix_password'
+zabbix_proxy_hostgroup = 'YourHostGroup'  # Replace with your Zabbix host group
 
 # SMTP configuration
-smtp_server = 'your-smtp-server'
-smtp_from = 'amit_t@t.com'
-smtp_to = 'kumaramitnayak@gmail.com'
-email_subject = f'Zabbix Proxy Report {datetime.now().strftime("%Y-%m-%d")}'
+smtp_server = 'your_smtp_server'
+smtp_port = 587
+smtp_user = 'amit_t@t.com'
+smtp_password = 'your_smtp_password'
+sender_email = 'amit_t@t.com'
+receiver_email = 'kumaramitnayak@gmail.com'
 
-# Zabbix item names
-cpu_item = 'system.cpu.util'
-memory_item = 'vm.memory.utilization'
-queue_item = 'zabbix[queue,10m]'
-uptime_item = 'system.uptime'
-last_seen_item = 'zabbix[proxy,{HOST.HOST},lastaccess]'
+# Zabbix API authentication
+auth_data = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_user,
+        'password': zabbix_password
+    },
+    'id': 1
+}
 
-# Zabbix API functions
-def zabbix_login():
-    data = {
-        'jsonrpc': '2.0',
-        'method': 'user.login',
-        'params': {
-            'user': zabbix_user,
-            'password': zabbix_password,
-        },
-        'id': 1,
-    }
-    response = requests.post(zabbix_url, json=data)
-    return response.json()['result']
+response = requests.post(zabbix_url, json=auth_data)
+auth_result = response.json()
 
-def zabbix_logout(auth_token):
-    data = {
-        'jsonrpc': '2.0',
-        'method': 'user.logout',
-        'params': [],
-        'id': 1,
-        'auth': auth_token,
-    }
-    requests.post(zabbix_url, json=data)
+if 'error' in auth_result:
+    print(f"Zabbix authentication failed: {auth_result['error']['data']}")
+    exit()
 
-def zabbix_get_hostgroup_hosts(auth_token, host_group_name):
-    data = {
-        'jsonrpc': '2.0',
-        'method': 'hostgroup.get',
-        'params': {
-            'output': 'extend',
-            'filter': {
-                'name': [host_group_name]
-            },
-            'select_hosts': ['hostid', 'host']
-        },
-        'auth': auth_token,
-        'id': 1,
-    }
-    response = requests.post(zabbix_url, json=data)
-    return response.json()['result'][0]['hosts']
+auth_token = auth_result['result']
 
-def zabbix_get_item_value(auth_token, host_id, item_key):
-    data = {
+# Get hosts in the specified host group
+hostgroup_data = {
+    'jsonrpc': '2.0',
+    'method': 'hostgroup.get',
+    'params': {
+        'output': 'extend',
+        'filter': {'name': [zabbix_proxy_hostgroup]}
+    },
+    'auth': auth_token,
+    'id': 1
+}
+
+hostgroup_response = requests.post(zabbix_url, json=hostgroup_data)
+hostgroup_result = hostgroup_response.json()
+
+if 'error' in hostgroup_result:
+    print(f"Error getting host group: {hostgroup_result['error']['data']}")
+    exit()
+
+host_ids = [host['hostid'] for host in hostgroup_result['result'][0]['hosts']]
+
+# Prepare data for each host
+table_data = []
+for host_id in host_ids:
+    # Fetch CPU data
+    cpu_data = {
         'jsonrpc': '2.0',
         'method': 'item.get',
         'params': {
             'output': 'extend',
             'hostids': host_id,
-            'search': {
-                'key_': item_key,
-            },
-            'sortfield': 'name',
+            'search': {'key_': 'system.cpu.util'}
         },
         'auth': auth_token,
-        'id': 1,
+        'id': 1
     }
-    response = requests.post(zabbix_url, json=data)
-    return response.json()['result'][0]['lastvalue']
 
-# Calculate last seen and uptime
-def calculate_last_seen(last_seen):
-    current_time_seconds = int(datetime.now().timestamp())
-    last_seen_seconds = int(last_seen)
-    return current_time_seconds - last_seen_seconds
+    cpu_response = requests.post(zabbix_url, json=cpu_data)
+    cpu_result = cpu_response.json()
 
-def calculate_uptime(uptime_seconds):
-    uptime_days = round(uptime_seconds / (24 * 3600), 2)
-    return uptime_days
+    if 'error' in cpu_result:
+        print(f"Error getting CPU data: {cpu_result['error']['data']}")
+        exit()
 
-# Main script
-try:
-    # Zabbix login
-    auth_token = zabbix_login()
+    cpu_value = round(float(cpu_result['result'][0]['lastvalue']), 2)
 
-    # Get hosts in the specified host group
-    hosts = zabbix_get_hostgroup_hosts(auth_token, zabbix_host_group)
+    # Fetch Memory data
+    memory_data = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': 'extend',
+            'hostids': host_id,
+            'search': {'key_': 'vm.memory.utilization'}
+        },
+        'auth': auth_token,
+        'id': 1
+    }
 
-    # Prepare email body
-    email_body = "Zabbix Proxy Report\n\n"
-    email_body += f"{'Host':<20}{'CPU (%)':<10}{'Memory (%)':<15}{'Queue':<10}{'Uptime (days)':<15}{'Last Seen (seconds)':<20}\n"
-    email_body += "=" * 90 + "\n"
+    memory_response = requests.post(zabbix_url, json=memory_data)
+    memory_result = memory_response.json()
 
-    for host in hosts:
-        host_id = host['hostid']
-        host_name = host['host']
+    if 'error' in memory_result:
+        print(f"Error getting Memory data: {memory_result['error']['data']}")
+        exit()
 
-        # Get item values
-        cpu_value = zabbix_get_item_value(auth_token, host_id, cpu_item)
-        memory_value = zabbix_get_item_value(auth_token, host_id, memory_item)
-        queue_value = zabbix_get_item_value(auth_token, host_id, queue_item)
-        uptime_value = zabbix_get_item_value(auth_token, host_id, uptime_item)
-        last_seen_value = zabbix_get_item_value(auth_token, host_id, last_seen_item)
+    memory_value = round(float(memory_result['result'][0]['lastvalue']), 2)
 
-        # Calculate last seen and uptime
-        last_seen_seconds = calculate_last_seen(last_seen_value)
-        uptime_days = calculate_uptime(float(uptime_value))
+    # Fetch Uptime data
+    uptime_data = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': 'extend',
+            'hostids': host_id,
+            'search': {'key_': 'system.uptime'}
+        },
+        'auth': auth_token,
+        'id': 1
+    }
 
-        # Add data to email body
-        email_body += f"{host_name:<20}{cpu_value:<10}{memory_value:<15}{queue_value:<10}{uptime_days:<15}{last_seen_seconds:<20}\n"
+    uptime_response = requests.post(zabbix_url, json=uptime_data)
+    uptime_result = uptime_response.json()
 
-    # Zabbix logout
-    zabbix_logout(auth_token)
+    if 'error' in uptime_result:
+        print(f"Error getting Uptime data: {uptime_result['error']['data']}")
+        exit()
 
-    # Send email
-    email_body += "\nReport generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    msg = MIMEText(email_body)
-    msg['Subject'] = email_subject
-    msg['From'] = smtp_from
-    msg['To'] = smtp_to
+    uptime_seconds = float(uptime_result['result'][0]['lastvalue'])
+    uptime_days = round(uptime_seconds / (60 * 60 * 24), 2)
 
-    with smtplib.SMTP(smtp_server) as server:
-        server.sendmail(smtp_from, [smtp_to], msg.as_string())
+    # Fetch Last Seen data
+    last_seen_data = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': 'extend',
+            'hostids': host_id,
+            'search': {'key_': 'zabbix[proxy,{HOST.HOST},lastaccess]'}
+        },
+        'auth': auth_token,
+        'id': 1
+    }
 
-    print("Email sent successfully!")
+    last_seen_response = requests.post(zabbix_url, json=last_seen_data)
+    last_seen_result = last_seen_response.json()
 
-except Exception as e:
-    print(f"Error: {e}")
+    if 'error' in last_seen_result:
+        print(f"Error getting Last Seen data: {last_seen_result['error']['data']}")
+        exit()
+
+    last_seen_seconds = float(last_seen_result['result'][0]['lastvalue'])
+    current_time_seconds = datetime.timestamp(datetime.now())
+    last_seen_days = round((current_time_seconds - last_seen_seconds) / (60 * 60 * 24), 2)
+
+    # Add data to the table
+    table_data.append({
+        'Host': host_id,
+        'CPU (%)': cpu_value,
+        'Memory (%)': memory_value,
+        'Uptime (days)': uptime_days,
+        'Last Seen (days)': last_seen_days
+    })
+
+# Close the Zabbix session
+logout_data = {
+    'jsonrpc': '2.0',
+    'method': 'user.logout',
+    'params': [],
+    'auth': auth_token,
+    'id': 1
+}
+
+requests.post(zabbix_url, json=logout_data)
+
+# Prepare email content
+email_subject = f"Zabbix Proxy Report {datetime.now().strftime('%Y-%m-%d')}"
+email_body = "<h2>Zabbix Proxy Report</h2>\n\n"
+email_body += "<table border='1'>\n<tr><th>Host</th><th>CPU (%)</th><th>Memory (%)</th><th>Uptime (days)</th><th>Last Seen (days)</th></tr>\n"
+
+for row in table_data:
+    email_body += f"<tr><td>{row['Host']}</td><td>{row['CPU']}</td><td>{row['Memory']}</td><td>{row['Uptime']}</td><td>{row['Last Seen']}</td></tr>\n"
+
+email_body += "</table>"
+
+# Send email
+msg = MIMEMultipart()
+msg['From'] = sender_email
+msg['To'] = receiver_email
+msg['Subject'] = email_subject
+msg.attach(MIMEText(email_body, 'html'))
+
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    # server.starttls()  # Uncomment if your SMTP server requires TLS
+    # server.login(smtp_user, smtp
