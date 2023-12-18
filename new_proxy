@@ -1,66 +1,93 @@
-import openpyxl
-from datetime import datetime, timedelta
-from zabbix_api import ZabbixAPI
+import time
+import pandas as pd
+from pyzabbix import ZabbixAPI
 
-# Zabbix server information
-zabbix_server = 'http://your-zabbix-server.com/zabbix'
-zabbix_user = 'your-username'
-zabbix_password = 'your-password'
-
-# Host group name
-host_group_name = 'YourHostGroupName'
+# Zabbix server configuration
+zabbix_url = 'http://your_zabbix_server/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
 # Connect to Zabbix API
-zabbix = ZabbixAPI(zabbix_server)
-zabbix.login(zabbix_user, zabbix_password)
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
 
-# Get host group ID
-host_group = zabbix.hostgroup.get(filter={'name': host_group_name})
-host_group_id = host_group[0]['groupid']
+# Host group name for which you want to get data
+host_group_name = 'Your Host Group Name'
 
 # Get hosts in the specified host group
-hosts = zabbix.host.get(groupids=host_group_id, output=['hostid', 'host'])
+hosts = zapi.host.get(group={"name": host_group_name}, output=["hostid", "host"])
 
-# Create Excel workbook and worksheet
-workbook = openpyxl.Workbook()
-worksheet = workbook.active
-worksheet.append(['Host', 'CPU Utilization (%)', 'Memory Utilization (%)', 'Queue', 'Uptime (days)', 'Last Seen (seconds)'])
+# Function to get the last seen for a host
+def get_last_seen(host_id):
+    last_seen_item = zapi.item.get(
+        hostids=host_id,
+        search={"key_": "zabbix[proxy,{},lastaccess".format(host_id)},
+        output=["lastvalue"],
+        limit=1,
+    )
+    if last_seen_item:
+        last_seen_timestamp = int(last_seen_item[0]['lastvalue'])
+        current_time = int(time.time())
+        last_seen_seconds = current_time - last_seen_timestamp
+        return last_seen_seconds
+    else:
+        return None
 
-# Iterate through hosts
-for host in hosts:
+# Function to get data for a host
+def get_host_data(host):
     host_id = host['hostid']
     host_name = host['host']
 
-    # Get CPU Utilization
-    cpu_util = zabbix.item.get(hostids=host_id, search={'key_': 'system.cpu.util'}, output=['lastvalue'])[0]['lastvalue']
-    cpu_util = round(float(cpu_util), 2) if cpu_util else None
+    cpu_item = zapi.item.get(
+        hostids=host_id,
+        search={"key_": "system.cpu.util"},
+        output=["lastvalue"],
+        limit=1,
+    )
 
-    # Get Memory Utilization
-    memory_util = zabbix.item.get(hostids=host_id, search={'key_': 'vm.memory.utilization'}, output=['lastvalue'])[0]['lastvalue']
-    memory_util = round(float(memory_util), 2) if memory_util else None
+    memory_item = zapi.item.get(
+        hostids=host_id,
+        search={"key_": "vm.memory.utilization"},
+        output=["lastvalue"],
+        limit=1,
+    )
 
-    # Get Queue
-    queue = zabbix.item.get(hostids=host_id, search={'key_': 'zabbix[queue,10m]'}, output=['lastvalue'])[0]['lastvalue']
+    queue_item = zapi.item.get(
+        hostids=host_id,
+        search={"key_": "zabbix[queue,10m]"},
+        output=["lastvalue"],
+        limit=1,
+    )
 
-    # Get Uptime
-    uptime_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'system.uptime'}, output=['lastvalue'])[0]['lastvalue']
-    uptime_days = round(float(uptime_seconds) / (24 * 60 * 60), 2) if uptime_seconds else None
+    uptime_item = zapi.item.get(
+        hostids=host_id,
+        search={"key_": "system.uptime"},
+        output=["lastvalue"],
+        limit=1,
+    )
 
-    # Get Last Seen
-    last_seen_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'zabbix[proxy,{HOST.HOST},lastaccess]'}, output=['lastvalue'])[0]['lastvalue']
-    last_seen_seconds = float(last_seen_seconds) if last_seen_seconds else None
+    last_seen_seconds = get_last_seen(host_id)
 
-    # Calculate Last Seen in seconds
-    current_time_seconds = datetime.now().timestamp()
-    last_seen_difference = current_time_seconds - last_seen_seconds if last_seen_seconds else None
+    return {
+        "Host": host_name,
+        "CPU": float(cpu_item[0]['lastvalue']),
+        "Memory": float(memory_item[0]['lastvalue']),
+        "Queue": float(queue_item[0]['lastvalue']),
+        "Uptime (Days)": float(uptime_item[0]['lastvalue']) / (24 * 60 * 60),
+        "Last Seen (Seconds)": last_seen_seconds,
+    }
 
-    # Append data to the worksheet
-    worksheet.append([host_name, cpu_util, memory_util, queue, uptime_days, last_seen_difference])
+# Get data for each host in the host group
+data_list = [get_host_data(host) for host in hosts]
 
-# Save Excel file
-excel_filename = f'{host_group_name}_report.xlsx'
-workbook.save(excel_filename)
-print(f'Data has been saved to {excel_filename}')
+# Create a DataFrame from the data
+df = pd.DataFrame(data_list)
+
+# Export the DataFrame to Excel
+excel_filename = 'zabbix_data.xlsx'
+df.to_excel(excel_filename, index=False)
+
+print(f"Zabbix data exported to {excel_filename}")
 
 # Logout from Zabbix API
-zabbix.user.logout()
+zapi.logout()
