@@ -1,76 +1,110 @@
-import pandas as pd
-from pyzabbix import ZabbixAPI
+import requests
 from datetime import datetime, timedelta
+import pandas as pd
 
-# Zabbix server information
-zabbix_server = 'http://your-zabbix-server.com/zabbix'
+# Zabbix API settings
+zabbix_api_url = 'http://your_zabbix_server/zabbix/api_jsonrpc.php'
 zabbix_user = 'your_username'
 zabbix_password = 'your_password'
 
-# Host group name
-host_group_name = 'YourHostGroupName'
+# Host group and items
+host_group = 'YourHostGroup'
+cpu_item = 'system.cpu.util'
+memory_item = 'vm.memory.utilization'
+queue_item = 'zabbix[queue,10m]'
+uptime_item = 'system.uptime'
+last_seen_item = 'zabbix[proxy,{HOST.HOST},lastaccess'
 
-# Connect to Zabbix server
-zapi = ZabbixAPI(zabbix_server)
-zapi.login(zabbix_user, zabbix_password)
-
-# Get host group ID
-host_group = zapi.hostgroup.get(filter={'name': host_group_name})
-if not host_group:
-    print(f"Host group '{host_group_name}' not found.")
-    exit()
-
-host_group_id = host_group[0]['groupid']
-
-# Get hosts in the host group
-hosts = zapi.host.get(groupids=[host_group_id], output=['hostid', 'host'])
-
-# Define item names
-item_names = {
-    'CPU': 'system.cpu.util',
-    'Memory': 'vm.memory.utilization',
-    'Queue': 'zabbix[queue,10m]',
-    'Uptime': 'system.uptime',
-    'LastSeen': 'zabbix[proxy,{HOST.HOST},lastaccess]'
+# Zabbix API authentication
+auth_data = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_user,
+        'password': zabbix_password
+    },
+    'id': 1
 }
 
-# Initialize data dictionary
-data = {
-    'Host': [],
-    'CPU': [],
-    'Memory': [],
-    'Queue': [],
-    'Uptime': [],
-    'LastSeen': []
+response = requests.post(zabbix_api_url, json=auth_data)
+auth_result = response.json()
+auth_token = auth_result.get('result')
+
+# Get hosts in the specified host group
+host_data = {
+    'jsonrpc': '2.0',
+    'method': 'host.get',
+    'params': {
+        'output': ['hostid', 'name'],
+        'groupids': [host_group],
+        'selectInterfaces': ['interfaceid', 'ip']
+    },
+    'auth': auth_token,
+    'id': 2
 }
 
-# Fetch data for each host
+response = requests.post(zabbix_api_url, json=host_data)
+hosts = response.json()['result']
+
+# Prepare data for export
+data = {'Host': [], 'CPU (%)': [], 'Memory (%)': [], 'Queue': [], 'Uptime (days)': [], 'Last Seen (seconds)': []}
+
 for host in hosts:
-    data['Host'].append(host['host'])
-    for param_name, item_key in item_names.items():
-        item = zapi.item.get(hostids=host['hostid'], search={'key_': item_key}, output=['lastvalue', 'lastclock'])
-        if item:
-            last_value = float(item[0]['lastvalue'])
-            last_seen_timestamp = int(item[0]['lastclock'])
-            last_seen_datetime = datetime.utcfromtimestamp(last_seen_timestamp)
-            
-            # Calculate last seen in seconds
-            current_time = datetime.utcnow()
-            last_seen_seconds = (current_time - last_seen_datetime).total_seconds()
+    host_id = host['hostid']
+    host_name = host['name']
 
-            # Calculate uptime in days
-            uptime_days = last_value / (24 * 60 * 60)  # Convert seconds to days
+    # Get item values
+    def get_item_value(item_key):
+        item_data = {
+            'jsonrpc': '2.0',
+            'method': 'item.get',
+            'params': {
+                'output': ['lastvalue'],
+                'hostids': host_id,
+                'search': {'key_': item_key}
+            },
+            'auth': auth_token,
+            'id': 3
+        }
+        response = requests.post(zabbix_api_url, json=item_data)
+        return response.json()['result'][0]['lastvalue']
 
-            # Append data to dictionary
-            data[param_name].append(round(last_seen_seconds, 2) if param_name == 'LastSeen' else round(uptime_days, 2))
-        else:
-            data[param_name].append(None)
+    cpu_value = get_item_value(cpu_item)
+    memory_value = get_item_value(memory_item)
+    queue_value = get_item_value(queue_item)
+    uptime_value_seconds = float(get_item_value(uptime_item))
+    last_seen_value_seconds = float(get_item_value(last_seen_item))
 
-# Create a DataFrame
+    # Calculate Uptime in days
+    uptime_days = round(uptime_value_seconds / (24 * 3600), 2)
+
+    # Calculate Last Seen in seconds
+    current_time_seconds = datetime.now().timestamp()
+    last_seen_seconds = current_time_seconds - last_seen_value_seconds
+
+    # Add data to the dictionary
+    data['Host'].append(host_name)
+    data['CPU (%)'].append(round(float(cpu_value), 2))
+    data['Memory (%)'].append(round(float(memory_value), 2))
+    data['Queue'].append(queue_value)
+    data['Uptime (days)'].append(uptime_days)
+    data['Last Seen (seconds)'].append(last_seen_seconds)
+
+# Create a DataFrame from the data
 df = pd.DataFrame(data)
 
-# Save to Excel file
-excel_filename = 'host_data.xlsx'
-df.to_excel(excel_filename, index=False, engine='openpyxl')
+# Export data to Excel
+excel_file = 'zabbix_data.xlsx'
+df.to_excel(excel_file, index=False)
+print(f'Data exported to {excel_file}')
 
-print(f"Excel file '{excel_filename}' has been generated.")
+# Logout from Zabbix API
+logout_data = {
+    'jsonrpc': '2.0',
+    'method': 'user.logout',
+    'params': [],
+    'auth': auth_token,
+    'id': 4
+}
+
+requests.post(zabbix_api_url, json=logout_data)
