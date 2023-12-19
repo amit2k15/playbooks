@@ -1,21 +1,13 @@
-#!/bin/bash
+Dear Courtney,
 
-# Get a list of unique process names
-process_names=$(ps -e -o comm= | sort -u)
+I hope this email finds you well. I wanted to provide you with an update regarding the incident INC34863168 related to disk read/write latency for the DOL and TPAU2PROD servers in Zabbix.
 
-# Convert the list to JSON format for Zabbix LLD
-json="{\"data\":["
-first=true
-while IFS= read -r process_name; do
-    if [ "$first" = false ]; then
-        json+=","
-    fi
-    json+="{\"{#PROCESSNAME}\":\"$process_name\"}"
-    first=false
-done <<< "$process_names"
-json+="]}"
+After conducting a thorough investigation, I have verified the monitoring data for both servers during the period from 8 pm on 12/17 to 4 pm on 12/18. It was observed that there was a spike in read/write requests that exceeded the threshold of 20 ms set in Zabbix. As a result, alerts were triggered by Zabbix.
 
-echo "$json"
+Our established threshold for read/write latency in Zabbix is 15 ms. However, during the mentioned timeframe, the latency surpassed this threshold, leading to the triggered alerts. I would like to highlight that once the latency returned to normal values, the alerts were automatically cleared by the system.
 
+It's important to note that this issue was specific to the DOL and TPAU2PROD servers, as we did not observe similar latency-related issues for other servers during the same period.
 
-top -b -n 1 | grep "Cpu(s)" -A1 | awk '/^%/ {print $2}' | sed -n '2p'
+If you have any further questions or if there is anything else you would like me to investigate, please feel free to let me know.
+
+Thank you for your understanding.
