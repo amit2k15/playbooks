@@ -1,9 +1,18 @@
 #!/bin/bash
 
-# Define the discovery data in JSON format
-echo '{"data":['
+# Get a list of unique process names
+process_names=$(ps -e -o comm= | sort -u)
 
-# Iterate through each process and extract relevant information
-ps aux --sort=-%cpu | awk 'NR>1 {print "{\"{#PROCESS_NAME}\":\"" $11 "\",\"{#PID}\":\"" $2 "\"},"}'
+# Convert the list to JSON format for Zabbix LLD
+json="{\"data\":["
+first=true
+while IFS= read -r process_name; do
+    if [ "$first" = false ]; then
+        json+=","
+    fi
+    json+="{\"{#PROCESSNAME}\":\"$process_name\"}"
+    first=false
+done <<< "$process_names"
+json+="]}"
 
-echo ']}'
+echo "$json"
