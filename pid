@@ -16,3 +16,6 @@ done <<< "$process_names"
 json+="]}"
 
 echo "$json"
+
+
+top -b -n 1 | grep "Cpu(s)" -A1 | awk '/^%/ {print $2}' | sed -n '2p'
