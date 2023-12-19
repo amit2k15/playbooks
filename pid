@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Define the output format for Zabbix LLD
+echo -n '{"data":['
+
+# Get a list of all processes and their PIDs
+process_list=$(ps axo pid,comm --sort=-%cpu | awk 'NR<=10 {print $1,$2}')
+
+# Loop through the processes and extract relevant information
+while read -r pid process; do
+    cpu_usage=$(ps -p "$pid" -o %cpu --no-headers)
+    memory_usage=$(ps -p "$pid" -o %mem --no-headers)
+
+    # Output JSON for Zabbix LLD
+    echo -n '{"{#PID}":"'"$pid"'","{#PROCESS}":"'"$process"'","{#CPU}":"'"$cpu_usage"'","{#MEMORY}":"'"$memory_usage"'"}'
+
+    # Add a comma if there are more processes
+    if [ "$pid" != "$(echo "$process_list" | tail -n 1 | cut -d' ' -f1)" ]; then
+        echo -n ','
+    fi
+done <<< "$process_list"
+
+echo -n ']}'
