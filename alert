@@ -1,61 +1,59 @@
-import pyzabbix
-import datetime
-import openpyxl
+import pandas as pd
+from pyzabbix import ZabbixAPI
 
-# Zabbix connection details
-ZABBIX_URL = "http://your-zabbix-server/zabbix"
-ZABBIX_USER = "your-username"
-ZABBIX_PASSWORD = "your-password"
+# Zabbix server URL and credentials
+zabbix_url = 'http://your-zabbix-server.com/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
-# Host groups to fetch data for
-HOST_GROUPS = ["abc", "def", "ghi"]
+# Initialize Zabbix API connection
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
 
-# Connect to Zabbix API
-zapi = pyzabbix.ZabbixAPI(ZABBIX_URL)
-zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
+# Host groups to retrieve data for
+host_groups = ['abc', 'def', 'ghi']
 
-# Function to fetch problem count for a host group
-def get_problem_count(host_group):
-    params = {
-        "groupids": host_group,
-        "selectHosts": "extend",
-        "output": "extend",
-        "filter": {
-            "eventid": "1",  # Filter for problems
-            "value": 1,     # Filter for active problems
-            "time_from": (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
-            "sortfield": "eventid",
-            "sortorder": "DESC"
-        }
-    }
-    problems = zapi.problem.get(**params)
+# Get the host group IDs
+host_group_ids = [group['groupid'] for group in zapi.hostgroup.get(filter={'name': host_groups})]
 
-    severity_counts = {
-        "Not classified": 0,
-        "Information": 0,
-        "Warning": 0,
-        "Minor": 0,
-        "Major": 0,
-        "Critical": 0
-    }
+# Set the time range for recent problems (in seconds)
+time_range = 86400  # 1 day
 
-    for problem in problems:
-        severity = problem["severity"]
-        severity_counts[severity] += 1
+# Get recent problems for each host group
+problem_counts = []
+severity_mapping = {
+    'Not classified': 0,
+    'Information': 1,
+    'Warning': 2,
+    'Average': 3,
+    'High': 4,
+    'Disaster': 5
+}
 
-    return severity_counts
+for group_id, group_name in zip(host_group_ids, host_groups):
+    recent_problems = zapi.problem.get(groupids=group_id, time_from=zapi.datetotime('-1d'), selectAcknowledges='extend')
+    
+    # Count problems based on severity
+    counts = {severity: 0 for severity in severity_mapping}
+    for problem in recent_problems:
+        if problem['acknowledges']:
+            # Skip acknowledged problems
+            continue
+        severity = problem['severity']
+        counts[severity] += 1
 
-# Create Excel workbook and worksheet
-workbook = openpyxl.Workbook()
-worksheet = workbook.active
+    problem_counts.append({'Host Group': group_name, **counts})
 
-# Write header row
-worksheet.append(["Host Group", "Not classified", "Information", "Warning", "Minor", "Major", "Critical"])
+# Create a DataFrame from the collected data
+df = pd.DataFrame(problem_counts)
 
-# Fetch and write data for each host group
-for host_group in HOST_GROUPS:
-    severity_counts = get_problem_count(host_group)
-    worksheet.append([host_group] + list(severity_counts.values()))
+# Reorder columns based on severity
+severity_order = ['Not classified', 'Information', 'Warning', 'Average', 'High', 'Disaster']
+df = df[['Host Group'] + severity_order]
 
-# Save Excel file
-workbook.save("zabbix_problem_counts.xlsx")
+# Save the DataFrame to an Excel file
+df.to_excel('zabbix_problems.xlsx', index=False)
+print("Data saved to 'zabbix_problems.xlsx'")
+
+# Logout from Zabbix API
+zapi.user.logout()
