@@ -1,86 +1,61 @@
-import requests
-import json
+import pyzabbix
 import datetime
 import openpyxl
 
-# Zabbix API credentials
-ZABBIX_URL = "http://your-zabbix-server/api_jsonrpc.php"
+# Zabbix connection details
+ZABBIX_URL = "http://your-zabbix-server/zabbix"
 ZABBIX_USER = "your-username"
 ZABBIX_PASSWORD = "your-password"
 
-# Host groups to filter
+# Host groups to fetch data for
 HOST_GROUPS = ["abc", "def", "ghi"]
 
-# Threshold for recent problems (in seconds)
-RECENT_THRESHOLD = 86400  # 1 day in seconds
+# Connect to Zabbix API
+zapi = pyzabbix.ZabbixAPI(ZABBIX_URL)
+zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
-# Create an Excel workbook
-workbook = openpyxl.Workbook()
-sheet = workbook.active
-sheet.title = "Recent Problems"
-
-# Write headers
-sheet["A1"] = "Host Group"
-sheet["B1"] = "Not classified"
-sheet["C1"] = "Information"
-sheet["D1"] = "Warning"
-sheet["E1"] = "Average"
-sheet["F1"] = "High"
-sheet["G1"] = "Disaster"
-
-row = 2
-
-# Function to fetch problems for a host group
-def get_problems_for_host_group(host_group_name):
-    data = {
-        "jsonrpc": "2.0",
-        "method": "problem.get",
-        "params": {
-            "output": ["groupid", "name", "severity", "lastchange"],
-            "groupids": host_group_name,
-            "sortfield": "lastchange",
-            "sortorder": "DESC",
-            "filter": {
-                "value": 1
-            }
-        },
-        "auth": "{}:{}".format(ZABBIX_USER, ZABBIX_PASSWORD),
-        "id": 1
+# Function to fetch problem count for a host group
+def get_problem_count(host_group):
+    params = {
+        "groupids": host_group,
+        "selectHosts": "extend",
+        "output": "extend",
+        "filter": {
+            "eventid": "1",  # Filter for problems
+            "value": 1,     # Filter for active problems
+            "time_from": (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
+            "sortfield": "eventid",
+            "sortorder": "DESC"
+        }
     }
-
-    response = requests.post(ZABBIX_URL, json=data)
-    result = json.loads(response.text)["result"]
-
-    if "problems" in result:
-        return result["problems"]
-    else:
-        return []
-
-# Fetch and process problems for each host group
-for host_group in HOST_GROUPS:
-    problems = get_problems_for_host_group(host_group)
+    problems = zapi.problem.get(**params)
 
     severity_counts = {
-        0: 0,  # Not classified
-        1: 0,  # Information
-        2: 0,  # Warning
-        3: 0,  # Average
-        4: 0,  # High
-        5: 0   # Disaster
+        "Not classified": 0,
+        "Information": 0,
+        "Warning": 0,
+        "Minor": 0,
+        "Major": 0,
+        "Critical": 0
     }
 
     for problem in problems:
-        last_change = datetime.datetime.fromtimestamp(problem["lastchange"])
-        age = datetime.datetime.now() - last_change
+        severity = problem["severity"]
+        severity_counts[severity] += 1
 
-        if age.seconds < RECENT_THRESHOLD:
-            severity_counts[problem["severity"]] += 1
+    return severity_counts
 
-    sheet["A{}".format(row)] = host_group
-    sheet["B{}".format(row):"G{}".format(row)] = list(severity_counts.values())
-    row += 1
+# Create Excel workbook and worksheet
+workbook = openpyxl.Workbook()
+worksheet = workbook.active
 
-# Save the Excel file
-workbook.save("recent_problems.xlsx")
+# Write header row
+worksheet.append(["Host Group", "Not classified", "Information", "Warning", "Minor", "Major", "Critical"])
 
-print("Recent problems report generated successfully!")
+# Fetch and write data for each host group
+for host_group in HOST_GROUPS:
+    severity_counts = get_problem_count(host_group)
+    worksheet.append([host_group] + list(severity_counts.values()))
+
+# Save Excel file
+workbook.save("zabbix_problem_counts.xlsx")
