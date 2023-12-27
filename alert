@@ -2,62 +2,59 @@ import pandas as pd
 from pyzabbix import ZabbixAPI, ZabbixAPIException
 from datetime import datetime, timedelta
 
-# Zabbix API connection details
-zabbix_url = 'http://your-zabbix-server.com/zabbix'
+# Zabbix server information
+zabbix_url = 'http://your-zabbix-server/zabbix'
 zabbix_user = 'your-username'
 zabbix_password = 'your-password'
 
-# Host groups to retrieve data for
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_url)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Host groups to query
 host_groups = ['abc', 'def', 'ghi']
 
-# Initialize Zabbix API
-zapi = ZabbixAPI(zabbix_url)
-zapi.login(zabbix_user, zabbix_password)
+# Time filter for recent problems (less than 1 day)
+time_filter = int((datetime.now() - timedelta(days=1)).timestamp())
 
-# Function to get recent problems for a host group
-def get_recent_problems(host_group):
-    group_id = zapi.hostgroup.get(filter={'name': host_group})[0]['groupid']
-    
-    # Set the time range (problems less than 1 day old)
-    since_time = int((datetime.now() - timedelta(days=1)).timestamp())
-    
-    # Get recent problems
-    problems = zapi.problem.get(
-        filter={'groups': [{'groupid': group_id}]},
-        selectAcknowledges='extend',
-        selectHosts=['host'],
-        selectTags=['tag', 'value'],
-        sortfield='eventid',
-        sortorder='DESC',
-        time_from=since_time
-    )
-    
-    return problems
+# Initialize a dictionary to store the counts
+result_data = {'Host Group': [], 'Not classified': [], 'Information': [], 'Warning': [], 'Minor': [], 'Major': [], 'Critical': []}
 
-# Function to format and export data to Excel
-def export_to_excel(data):
-    df = pd.DataFrame(data)
-    df = df.pivot_table(index='host_group', columns='severity', values='count', fill_value=0)
-    df = df[['Not classified', 'Information', 'Warning', 'Minor', 'Major', 'Critical']]
-    df.to_excel('zabbix_problems.xlsx', index=True)
-
-# Main script
-result_data = []
-
+# Fetch recent problems for each host group
 for host_group in host_groups:
-    problems = get_recent_problems(host_group)
-    
-    # Count problems by severity
-    problem_count = {'host_group': host_group, 'Not classified': 0, 'Information': 0, 'Warning': 0, 'Minor': 0, 'Major': 0, 'Critical': 0}
-    
-    for problem in problems:
-        severity = problem['severity']
-        problem_count[severity] += 1
-    
-    result_data.append(problem_count)
+    try:
+        # Get host group ID
+        group = zabbix.hostgroup.get(filter={'name': host_group})[0]
+        group_id = group['groupid']
 
-# Export data to Excel
-export_to_excel(result_data)
+        # Fetch recent problems for the host group
+        problems = zabbix.problem.get(groupids=group_id, time_from=time_filter, output='extend')
 
-# Logout from Zabbix API
-zapi.user.logout()
+        # Initialize counts
+        counts = {'Not classified': 0, 'Information': 0, 'Warning': 0, 'Minor': 0, 'Major': 0, 'Critical': 0}
+
+        # Count problems based on severity
+        for problem in problems:
+            severity = int(problem['severity'])
+            severity_str = zabbix.severity.get(severity=severity, output='extend')[0]['name']
+            counts[severity_str] += 1
+
+        # Append data to the result dictionary
+        result_data['Host Group'].append(host_group)
+        for severity in result_data.keys()[1:]:
+            result_data[severity].append(counts[severity])
+
+    except ZabbixAPIException as e:
+        print(f"Error fetching data for {host_group}: {e}")
+
+# Create a DataFrame from the result dictionary
+result_df = pd.DataFrame(result_data)
+
+# Save the DataFrame to an Excel file
+output_file = 'zabbix_problems.xlsx'
+result_df.to_excel(output_file, index=False, engine='openpyxl')
+
+# Disconnect from Zabbix API
+zabbix.logout()
+
+print(f"Data exported to {output_file}")
