@@ -1,110 +1,86 @@
 import requests
-import pandas as pd
-from datetime import datetime, timedelta
+import json
+import datetime
+import openpyxl
 
-# Zabbix API information
-zabbix_url = "http://your_zabbix_server/zabbix/api_jsonrpc.php"
-zabbix_user = "your_zabbix_username"
-zabbix_password = "your_zabbix_password"
+# Zabbix API credentials
+ZABBIX_URL = "http://your-zabbix-server/api_jsonrpc.php"
+ZABBIX_USER = "your-username"
+ZABBIX_PASSWORD = "your-password"
 
-# Set the age limit for problems (in seconds)
-age_limit_seconds = 24 * 60 * 60  # 1 day
+# Host groups to filter
+HOST_GROUPS = ["abc", "def", "ghi"]
 
-# Host groups to retrieve data for
-host_groups = ['abc', 'def', 'ghi']
+# Threshold for recent problems (in seconds)
+RECENT_THRESHOLD = 86400  # 1 day in seconds
 
-def get_zabbix_data():
-    # Zabbix API authentication
-    auth_payload = {
-        "jsonrpc": "2.0",
-        "method": "user.login",
-        "params": {
-            "user": zabbix_user,
-            "password": zabbix_password
-        },
-        "id": 1,
-        "auth": None
-    }
+# Create an Excel workbook
+workbook = openpyxl.Workbook()
+sheet = workbook.active
+sheet.title = "Recent Problems"
 
-    response = requests.post(zabbix_url, json=auth_payload)
-    auth_result = response.json()
+# Write headers
+sheet["A1"] = "Host Group"
+sheet["B1"] = "Not classified"
+sheet["C1"] = "Information"
+sheet["D1"] = "Warning"
+sheet["E1"] = "Average"
+sheet["F1"] = "High"
+sheet["G1"] = "Disaster"
 
-    if 'result' in auth_result:
-        auth_token = auth_result['result']
-        print("Zabbix API authentication successful.")
-    else:
-        raise Exception("Zabbix API authentication failed.")
+row = 2
 
-    # Get host group IDs
-    host_group_ids = []
-    for group in host_groups:
-        get_group_payload = {
-            "jsonrpc": "2.0",
-            "method": "hostgroup.get",
-            "params": {
-                "output": ["groupid"],
-                "filter": {
-                    "name": group
-                }
-            },
-            "id": 2,
-            "auth": auth_token
-        }
-
-        response = requests.post(zabbix_url, json=get_group_payload)
-        group_result = response.json()
-
-        if 'result' in group_result and group_result['result']:
-            group_id = group_result['result'][0]['groupid']
-            host_group_ids.append(group_id)
-        else:
-            print(f"Failed to get ID for host group '{group}'")
-
-    # Get problems for specified host groups and age limit
-    end_time = int(datetime.now().timestamp())
-    start_time = end_time - age_limit_seconds
-
-    problems_payload = {
+# Function to fetch problems for a host group
+def get_problems_for_host_group(host_group_name):
+    data = {
         "jsonrpc": "2.0",
         "method": "problem.get",
         "params": {
-            "output": ["severity"],
-            "groupids": host_group_ids,
-            "time_from": start_time,
-            "time_till": end_time,
-            "selectAcknowledges": "extend",
-            "sortfield": "eventid",
+            "output": ["groupid", "name", "severity", "lastchange"],
+            "groupids": host_group_name,
+            "sortfield": "lastchange",
             "sortorder": "DESC",
-            "limit": 100,  # You can adjust the limit based on your needs
+            "filter": {
+                "value": 1
+            }
         },
-        "id": 3,
-        "auth": auth_token
+        "auth": "{}:{}".format(ZABBIX_USER, ZABBIX_PASSWORD),
+        "id": 1
     }
 
-    response = requests.post(zabbix_url, json=problems_payload)
-    problems_result = response.json()
+    response = requests.post(ZABBIX_URL, json=data)
+    result = json.loads(response.text)["result"]
 
-    if 'result' in problems_result:
-        return problems_result['result']
+    if "problems" in result:
+        return result["problems"]
     else:
-        print("Failed to retrieve problems from Zabbix.")
         return []
 
-def create_excel_report(problems_data):
-    # Create a DataFrame from the Zabbix data
-    df = pd.DataFrame(problems_data)
+# Fetch and process problems for each host group
+for host_group in HOST_GROUPS:
+    problems = get_problems_for_host_group(host_group)
 
-    # Count the occurrences of each severity level
-    severity_counts = df['severity'].value_counts().sort_index()
+    severity_counts = {
+        0: 0,  # Not classified
+        1: 0,  # Information
+        2: 0,  # Warning
+        3: 0,  # Average
+        4: 0,  # High
+        5: 0   # Disaster
+    }
 
-    # Create an Excel writer
-    with pd.ExcelWriter('zabbix_problems_report.xlsx', engine='xlsxwriter') as writer:
-        # Write the summary sheet
-        severity_counts.to_excel(writer, sheet_name='Summary', header=['Count'])
+    for problem in problems:
+        last_change = datetime.datetime.fromtimestamp(problem["lastchange"])
+        age = datetime.datetime.now() - last_change
 
-        # Write the raw data sheet
-        df.to_excel(writer, sheet_name='Raw Data', index=False)
+        if age.seconds < RECENT_THRESHOLD:
+            severity_counts[problem["severity"]] += 1
 
-if __name__ == "__main__":
-    zabbix_data = get_zabbix_data()
-    create_excel_report(zabbix_data)
+    sheet["A{}".format(row)] = host_group
+    sheet["B{}".format(row):"G{}".format(row)] = list(severity_counts.values())
+    row += 1
+
+# Save the Excel file
+workbook.save("recent_problems.xlsx")
+
+print("Recent problems report generated successfully!")
