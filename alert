@@ -1,53 +1,110 @@
-import openpyxl
-from pyzabbix import ZabbixAPI, ZabbixAPIException
+import requests
+import pandas as pd
 from datetime import datetime, timedelta
 
-# Zabbix server URL and credentials
-zabbix_url = 'http://your-zabbix-server/api_jsonrpc.php'
-zabbix_user = 'your-username'
-zabbix_password = 'your-password'
+# Zabbix API information
+zabbix_url = "http://your_zabbix_server/zabbix/api_jsonrpc.php"
+zabbix_user = "your_zabbix_username"
+zabbix_password = "your_zabbix_password"
 
-# Host groups to monitor
+# Set the age limit for problems (in seconds)
+age_limit_seconds = 24 * 60 * 60  # 1 day
+
+# Host groups to retrieve data for
 host_groups = ['abc', 'def', 'ghi']
 
-# Connect to Zabbix API
-zabbix = ZabbixAPI(zabbix_url)
-zabbix.login(zabbix_user, zabbix_password)
+def get_zabbix_data():
+    # Zabbix API authentication
+    auth_payload = {
+        "jsonrpc": "2.0",
+        "method": "user.login",
+        "params": {
+            "user": zabbix_user,
+            "password": zabbix_password
+        },
+        "id": 1,
+        "auth": None
+    }
 
-# Get host group IDs
-host_group_ids = [group['groupid'] for group in zabbix.hostgroup.get(filter={'name': host_groups})]
+    response = requests.post(zabbix_url, json=auth_payload)
+    auth_result = response.json()
 
-# Calculate the timestamp for 1 day ago
-one_day_ago_timestamp = int((datetime.now() - timedelta(days=1)).timestamp())
+    if 'result' in auth_result:
+        auth_token = auth_result['result']
+        print("Zabbix API authentication successful.")
+    else:
+        raise Exception("Zabbix API authentication failed.")
 
-# Get recent problems for specified host groups and age less than 1 day
-recent_problems = zabbix.problem.get(
-    output=['eventid', 'severity'],
-    filter={'groups': host_group_ids, 'only_true': '1', 'recent': 'true', 'time_from': one_day_ago_timestamp},
-)
+    # Get host group IDs
+    host_group_ids = []
+    for group in host_groups:
+        get_group_payload = {
+            "jsonrpc": "2.0",
+            "method": "hostgroup.get",
+            "params": {
+                "output": ["groupid"],
+                "filter": {
+                    "name": group
+                }
+            },
+            "id": 2,
+            "auth": auth_token
+        }
 
-# Count the number of problems for each severity
-severity_count = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        response = requests.post(zabbix_url, json=get_group_payload)
+        group_result = response.json()
 
-for problem in recent_problems:
-    severity = int(problem['severity'])
-    severity_count[severity] += 1
+        if 'result' in group_result and group_result['result']:
+            group_id = group_result['result'][0]['groupid']
+            host_group_ids.append(group_id)
+        else:
+            print(f"Failed to get ID for host group '{group}'")
 
-# Write the results to an Excel file
-excel_file = 'zabbix_problems_count.xlsx'
-wb = openpyxl.Workbook()
-ws = wb.active
+    # Get problems for specified host groups and age limit
+    end_time = int(datetime.now().timestamp())
+    start_time = end_time - age_limit_seconds
 
-# Write header
-ws.append(['Severity', 'Count'])
+    problems_payload = {
+        "jsonrpc": "2.0",
+        "method": "problem.get",
+        "params": {
+            "output": ["severity"],
+            "groupids": host_group_ids,
+            "time_from": start_time,
+            "time_till": end_time,
+            "selectAcknowledges": "extend",
+            "sortfield": "eventid",
+            "sortorder": "DESC",
+            "limit": 100,  # You can adjust the limit based on your needs
+        },
+        "id": 3,
+        "auth": auth_token
+    }
 
-# Write data
-for severity, count in severity_count.items():
-    ws.append([severity, count])
+    response = requests.post(zabbix_url, json=problems_payload)
+    problems_result = response.json()
 
-# Save the Excel file
-wb.save(excel_file)
-print(f"Results saved to {excel_file}")
+    if 'result' in problems_result:
+        return problems_result['result']
+    else:
+        print("Failed to retrieve problems from Zabbix.")
+        return []
 
-# Logout from Zabbix API
-zabbix.logout()
+def create_excel_report(problems_data):
+    # Create a DataFrame from the Zabbix data
+    df = pd.DataFrame(problems_data)
+
+    # Count the occurrences of each severity level
+    severity_counts = df['severity'].value_counts().sort_index()
+
+    # Create an Excel writer
+    with pd.ExcelWriter('zabbix_problems_report.xlsx', engine='xlsxwriter') as writer:
+        # Write the summary sheet
+        severity_counts.to_excel(writer, sheet_name='Summary', header=['Count'])
+
+        # Write the raw data sheet
+        df.to_excel(writer, sheet_name='Raw Data', index=False)
+
+if __name__ == "__main__":
+    zabbix_data = get_zabbix_data()
+    create_excel_report(zabbix_data)
