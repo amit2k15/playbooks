@@ -1,0 +1,53 @@
+import openpyxl
+from pyzabbix import ZabbixAPI, ZabbixAPIException
+from datetime import datetime, timedelta
+
+# Zabbix server URL and credentials
+zabbix_url = 'http://your-zabbix-server/api_jsonrpc.php'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Host groups to monitor
+host_groups = ['abc', 'def', 'ghi']
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_url)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get host group IDs
+host_group_ids = [group['groupid'] for group in zabbix.hostgroup.get(filter={'name': host_groups})]
+
+# Calculate the timestamp for 1 day ago
+one_day_ago_timestamp = int((datetime.now() - timedelta(days=1)).timestamp())
+
+# Get recent problems for specified host groups and age less than 1 day
+recent_problems = zabbix.problem.get(
+    output=['eventid', 'severity'],
+    filter={'groups': host_group_ids, 'only_true': '1', 'recent': 'true', 'time_from': one_day_ago_timestamp},
+)
+
+# Count the number of problems for each severity
+severity_count = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+
+for problem in recent_problems:
+    severity = int(problem['severity'])
+    severity_count[severity] += 1
+
+# Write the results to an Excel file
+excel_file = 'zabbix_problems_count.xlsx'
+wb = openpyxl.Workbook()
+ws = wb.active
+
+# Write header
+ws.append(['Severity', 'Count'])
+
+# Write data
+for severity, count in severity_count.items():
+    ws.append([severity, count])
+
+# Save the Excel file
+wb.save(excel_file)
+print(f"Results saved to {excel_file}")
+
+# Logout from Zabbix API
+zabbix.logout()
