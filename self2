@@ -1,0 +1,78 @@
+# Technical Specifications Document
+
+## Business Requirement
+This requirement pertains to the development of a **Self-healing solution using Zabbix**. The key functionality is to identify and automatically heal issues in Windows services leveraging the Zabbix agent, which notifies stakeholders via Alert and Notification system if the service goes down and creates an incident in ServiceNow after three unsuccessful healing attempts.
+
+## Systems Involved:
+- **Windows Services**
+- **Zabbix Agent**
+- **Alert and Notification System**
+- **ServiceNow**
+
+## Best Practices:
+The following are the best practices for this requirement:
+
+1. **Install Zabbix Agent**: This forms the core mechanism through which system health is monitored.
+2. **Enable Service Monitoring**: Continuously track the status of Windows services.
+3. **Enable Alerting**: If a service fails or goes down, an alert should be sent to relevant stakeholders notifying them of the issue.
+4. **Heal the Service**: Once the alert is triggered, the Zabbix agent should attempt to self-heal the service.
+5. **Attempts for Healing**: There should be a maximum of 3 attempts at healing a service. If all attempts fail, then initiate the next step.
+6. **Create ServiceNow Incident**: If the healing process fails even after 3 attempts, create an incident in ServiceNow.
+
+## Technical Design & Architecture
+
+### Overview
+
+The solution involves utilizing the Zabbix monitoring tool to monitor Windows services. If a service is detected as down, it will trigger an alert and attempt to restart the service. If unsuccessful after 3 attempts, an incident is created in ServiceNow.
+
+```flow
+st=>start: Start Monitoring
+e=>end: End
+op1=>operation: Detect Service Down
+op2=>operation: Trigger Alert
+op3=>operation: Attempt Restart (max 3 times)
+op4=>operation: Create ServiceNow Incident
+cond=>condition: Successful Restart?
+
+st->op1->op2->op3->cond
+cond(yes)->e
+cond(no)->op4->e
+```
+
+### Detailed Design
+
+- **Zabbix Agent**: The Zabbix agent will be installed on the Windows servers. It is responsible for collecting data related to system performance and availability of Windows services.
+
+- **Service Monitoring**: The Zabbix agent will monitor the services listed in the configuration file. It will be set up to check the status of these services at regular intervals.
+
+- **Alert & Notification System**: An alert system will be configured to send Notifications when a service goes down. This can include email, SMS, or other types of messages.
+
+- **Self-Healing Procedure**: On receiving an alert about service downtime, the Zabbix agent will try to restart the service. This healing process will be attempted three times in case of continuous failure.
+
+- **ServiceNow Integration**: If the service fails to restart after three attempts, the agent will create an incident in ServiceNow through API calls. Relevant information like logs, error codes, and service name will be passed along with the incident.
+
+## Tables, Checklists, and Bullets:
+
+| Component | Description |
+| --- | --- |
+| Zabbix Agent | Collects system performance data and checks service status |
+| Alerting System | Sends notifications when a service goes down |
+| Self-Healing Procedure | Automatically attempts to restart failed service |
+| ServiceNow Integration | Creates an incident if auto-recovery fails |
+
+**Checklist for Best Practices:**
+
+- [x] Install Zabbix agent
+- [x] Enable service monitoring
+- [x] Set up alerts and notification
+- [x] Configure self-healing procedure
+- [x] Implement ServiceNow integration
+
+*Key Points to Remember:*
+
+- Regular system health checks are critical to avoid service disruptions.
+- Monitoring strategies should be robust and comprehensive to cover all aspects of system health.
+- Any issues detected should be addressed promptly and effectively.
+- The self-healing procedure is the first line of defense.
+- Alert mechanisms should be reliable and instant.
+- Incident management process should be streamlined and efficient.
