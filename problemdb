@@ -1,0 +1,21 @@
+SELECT
+    hg.name AS hostgroup,
+    COUNT(DISTINCT p.eventid) AS problem_count
+FROM
+    hosts h
+JOIN
+    hosts_groups hg ON h.hostid = hg.hostid
+JOIN
+    items i ON h.hostid = i.hostid
+JOIN
+    functions f ON i.itemid = f.itemid
+JOIN
+    triggers t ON f.triggerid = t.triggerid
+LEFT JOIN
+    problem p ON t.triggerid = p.objectid
+WHERE
+    hg.name = 'YourHostGroupName' -- Replace 'YourHostGroupName' with the actual name of the host group
+    AND t.description LIKE '%{TRIGGER.STATUS}%' -- Replace {TRIGGER.STATUS} with the actual status condition
+    AND t.expression = '{TRIGGER.EXPRESSION}' -- Replace {TRIGGER.EXPRESSION} with the actual trigger expression
+GROUP BY
+    hg.name;
