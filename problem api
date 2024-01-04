@@ -1,0 +1,87 @@
+import requests
+import pandas as pd
+from datetime import datetime, timedelta
+
+# Zabbix API details
+zabbix_url = 'http://your-zabbix-server/zabbix/api_jsonrpc.php'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Set the time range for the last 24 hours
+end_time = int(datetime.now().timestamp())
+start_time = int((datetime.now() - timedelta(days=1)).timestamp())
+
+# Zabbix API authentication
+auth_payload = {
+    'jsonrpc': '2.0',
+    'method': 'user.login',
+    'params': {
+        'user': zabbix_user,
+        'password': zabbix_password,
+    },
+    'id': 1,
+}
+
+response = requests.post(zabbix_url, json=auth_payload)
+auth_result = response.json()
+
+if 'result' in auth_result:
+    auth_token = auth_result['result']
+else:
+    print("Failed to authenticate.")
+    exit()
+
+# Get hosts with problems in the last 24 hours
+problem_payload = {
+    'jsonrpc': '2.0',
+    'method': 'problem.get',
+    'params': {
+        'output': ['eventid', 'objectid', 'severity', 'name', 'tags'],
+        'selectTags': 'extend',
+        'time_from': start_time,
+        'time_till': end_time,
+        'sortfield': 'eventid',
+        'sortorder': 'DESC',
+    },
+    'auth': auth_token,
+    'id': 2,
+}
+
+response = requests.post(zabbix_url, json=problem_payload)
+problem_result = response.json()
+
+if 'result' in problem_result:
+    problems = problem_result['result']
+else:
+    print("Failed to fetch problems.")
+    exit()
+
+# Filter data based on Tag name=APP
+filtered_problems = [problem for problem in problems if any(tag['tag'] == 'APP' for tag in problem['tags'])]
+
+# Create a DataFrame
+df = pd.DataFrame(filtered_problems)
+
+# Initialize a dictionary to store the counts
+severity_counts = {'Information': 0, 'Warning': 0, 'Minor': 0, 'Major': 0, 'Critical': 0}
+
+# Aggregate counts based on Tag value and severity
+for index, row in df.iterrows():
+    tag_value = next(tag['value'] for tag in row['tags'] if tag['tag'] == 'APP')
+    severity = row['severity']
+    severity_counts[severity] += 1
+
+# Create a new DataFrame for the output
+output_df = pd.DataFrame([severity_counts])
+
+# Set the Application column based on Tag value
+output_df['Application'] = tag_value
+
+# Reorder columns
+output_df = output_df[['Application', 'Information', 'Warning', 'Minor', 'Major', 'Critical']]
+
+# Export the DataFrame to Excel
+excel_file = 'zabbix_problems.xlsx'
+output_df.to_excel(excel_file, index=False, engine='openpyxl')
+
+print(f"Data exported to {excel_file}")
