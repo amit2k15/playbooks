@@ -6,3 +6,19 @@
       service:
         name: "{{ impactedEntity[31:] }}"
         state: restarted
+Subject: Apology and Clarification Regarding Recent Zabbix Alerts
+
+Dear Kranthi,
+
+I hope this email finds you well. I wanted to provide an update regarding the alerts you may have received today concerning our database monitoring proxy in Zabbix.
+
+Upon cross-verification in Zabbix, it has been identified that an unforeseen auto system patching occurred for our database monitoring proxy. This unplanned activity led to the reboot of the Zabbix proxy, subsequently triggering the alerts you observed.
+
+We sincerely apologize for any inconvenience caused by these unexpected alerts. Rest assured, we are actively addressing the situation and investigating the root cause with our Unix team to prevent such incidents in the future.
+
+Please disregard the mentioned alerts, and thank you for your understanding.
+
+Best regards,
+[Your Name]
+[Your Position]
+[Your Company]
