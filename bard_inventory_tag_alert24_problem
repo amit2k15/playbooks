@@ -1,0 +1,84 @@
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta
+from zabbix_api import ZabbixAPI
+
+# Zabbix server information
+zabbix_server = 'http://your-zabbix-server.com/zabbix'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Host tag name
+tag_name = 'APP'
+
+# Inventory type
+inventory_type = 'PS'
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_server)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get hosts with the specified tag and inventory type
+hosts = zabbix.host.get(
+   output=['hostid', 'host', 'tags'],
+   search={
+       'tags': tag_name,
+       'inventory_mode': inventory_type
+   }
+)
+
+# Create a dictionary to store alert counts for each host tag value
+alert_counts = {}
+
+# Get alerts for the last 24 hours
+end_time = datetime.now()
+start_time = end_time - timedelta(hours=24)
+alerts = zabbix.alert.get(
+   time_from=start_time.strftime('%Y-%m-%d %H:%M:%S'),
+   time_till=end_time.strftime('%Y-%m-%d %H:%M:%S'),
+   output=['hosts', 'severity', 'tags'],
+   sortfield='clock',
+   sortorder='DESC'
+)
+
+# Process alerts and count them based on host tag value and severity
+for alert in alerts:
+   host_tags = alert['hosts'][0]['tags']  # Get tags of the host associated with the alert
+   host_tag_value = next((tag['value'] for tag in host_tags if tag['tag'] == tag_name), None)
+   severity = alert['severity']
+
+   if host_tag_value:
+       alert_counts.setdefault(host_tag_value, {}).setdefault(severity, 0)
+       alert_counts[host_tag_value][severity] += 1
+
+# Create email content
+email_content = "<h2>Zabbix Alert Report (Based on Host Tags)</h2>"
+email_content += "<table border='1'><tr><th>APP</th><th>Not_classified</th><th>Information</th><th>Warning</th><th>Minor</th><th>Major</th><th>Critical</th></tr>"
+
+for host_tag_value, counts in alert_counts.items():
+   row_values = [host_tag_value] + [counts.get(severity, 0) for severity in [0, 1, 2, 3, 4, 5]]
+   email_content += f"<tr><td>{'</td><td>'.join(str(value) for value in row_values)}</td></tr>"
+
+email_content += "</table>"
+
+# Logout from Zabbix API
+zabbix.user.logout()
+
+# Sending email using smtplib
+from_email = 'amit_t@t.com'
+to_email = 'kumaramitnayak@gmail.com'
+smtp_server = 'your-smtp-server.com'
+subject = f'Zabbix Alert Report (Host Tags) {datetime.now().strftime("%Y-%m-%d")}'
+
+msg = MIMEMultipart()
+msg['From'] = from_email
+msg['To'] = to_email
+msg['Subject'] = subject
+msg.attach(MIMEText(email_content, 'html'))
+
+# Connect to the SMTP server and send the email
+with smtplib.SMTP(smtp_server) as server:
+   server.sendmail(from_email, to_email, msg.as_string())
+
+print(f'Email with Zabbix Alert Report sent to {to_email}')
