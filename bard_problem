@@ -1,0 +1,64 @@
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta
+from zabbix_api import ZabbixAPI
+
+# Zabbix server information
+zabbix_server = 'http://your-zabbix-server.com/zabbix'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Time range for recent problems
+time_from = datetime.now() - timedelta(hours=24)
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_server)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get hosts with the specified tag
+hosts = zabbix.host.get(
+    filter={"tags": [{"tag": "APP"}]},
+    output=['hostid', 'host', 'name']
+)
+
+# Initialize data structure for counting events
+problem_counts = {}
+
+# Iterate through hosts
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+    tag_value = host['name']  # Assuming tag value is stored in the 'name' field
+
+    # Get recent problems for the host
+    problems = zabbix.problem.get(
+        hostids=host_id,
+        time_from=time_from.strftime("%Y-%m-%d %H:%M:%S"),
+        output=['severity', 'name']
+    )
+
+    # Count events based on severity
+    problem_counts.setdefault(tag_value, {
+        'Not classified': 0,
+        'Information': 0,
+        'Warning': 0,
+        'Minor': 0,
+        'Major': 0,
+        'Critical': 0
+    })
+
+    for problem in problems:
+        severity = problem['severity']
+        problem_counts[tag_value][severity] += 1
+
+# Create email content
+email_content = "<h2>Zabbix Problem Report (Recent 24 Hours)</h2>"
+email_content += "<table border='1'><tr><th>APP</th><th>Not classified</th><th>Information</th><th>Warning</th><th>Minor</th><th>Major</th><th>Critical</th></tr>"
+
+for tag_value, counts in problem_counts.items():
+    email_content += f"<tr><td>{tag_value}</td><td>{counts['Not classified']}</td><td>{counts['Information']}</td><td>{counts['Warning']}</td><td>{counts['Minor']}</td><td>{counts['Major']}</td><td>{counts['Critical']}</td></tr>"
+
+email_content += "</table>"
+
+# Sending email (rest of the code remains the same)
