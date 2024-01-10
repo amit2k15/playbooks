@@ -1,0 +1,81 @@
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta
+from collections import defaultdict
+from zabbix_api import ZabbixAPI
+
+# Zabbix server information
+zabbix_server = 'http://your-zabbix-server.com/zabbix'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Host group name
+host_group_name = 'YourHostGroupName'
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_server)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get host group ID
+host_group = zabbix.hostgroup.get(filter={'name': host_group_name})
+host_group_id = host_group[0]['groupid']
+
+# Get hosts in the specified host group
+hosts = zabbix.host.get(groupids=host_group_id, output=['hostid', 'host', 'tags'])
+
+# Filter hosts with Tag name=APP
+filtered_hosts = [host for host in hosts if any(tag['tag'] == 'APP' for tag in host['tags'])]
+
+# Get the host IDs for the filtered hosts
+host_ids = [host['hostid'] for host in filtered_hosts]
+
+# Calculate the timestamp for 24 hours ago
+since_time = int((datetime.now() - timedelta(days=1)).timestamp())
+
+# Get recent problems for the last 24 hours
+problems = zabbix.problem.get(hostids=host_ids, time_from=since_time, output=['hostid', 'tags', 'severity'])
+
+# Count the occurrences based on Host Tag value and severity
+count_by_host_tag_and_severity = defaultdict(lambda: defaultdict(int))
+
+for problem in problems:
+    host_id = problem['hostid']
+    host_tag_value = next(tag['value'] for tag in filtered_hosts if tag['hostid'] == host_id)['value']
+    severity = problem['severity']
+
+    count_by_host_tag_and_severity[host_tag_value][severity] += 1
+
+# Create email content
+email_content = "<h2>Zabbix Recent Problems Report</h2>"
+email_content += "<table border='1'><tr><th>Host Tag Value</th><th>Not Classified</th><th>Information</th><th>Warning</th><th>Minor</th><th>Major</th><th>Critical</th></tr>"
+
+# Iterate through the count dictionary and format the table
+for host_tag_value, severity_count in count_by_host_tag_and_severity.items():
+    email_content += f"<tr><td>{host_tag_value}</td>"
+    email_content += "".join(f"<td>{severity_count.get(severity, 0)}</td>" for severity in ['Not classified', 'Information', 'Warning', 'Minor', 'Major', 'Critical'])
+    email_content += "</tr>"
+
+# Close the HTML table
+email_content += "</table>"
+
+# Logout from Zabbix API
+zabbix.user.logout()
+
+# Sending email using smtplib
+from_email = 'amit_t@t.com'
+to_email = 'kumaramitnayak@gmail.com'
+smtp_server = 'your-smtp-server.com'
+subject = f'Zabbix Recent Problems Report {datetime.now().strftime("%Y-%m-%d")}'
+
+msg = MIMEMultipart()
+msg['From'] = from_email
+msg['To'] = to_email
+msg['Subject'] = subject
+msg.attach(MIMEText(email_content, 'html'))
+
+# Connect to the SMTP server and send the email
+with smtplib.SMTP(smtp_server) as server:
+    server.sendmail(from_email, to_email, msg.as_string())
+
+print(f'Email with Zabbix Recent Problems Report sent to {to_email}')
