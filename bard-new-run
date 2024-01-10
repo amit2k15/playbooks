@@ -1,0 +1,70 @@
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime
+import openpyxl
+from zabbix_api import ZabbixAPI
+
+# Zabbix server information
+zabbix_server = 'http://your-zabbix-server.com/zabbix'
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+# Host group name
+host_group_name = 'YourHostGroupName'
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_server)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get host group ID
+host_group = zabbix.hostgroup.get(filter={'name': host_group_name})
+host_group_id = host_group[0]['groupid']
+
+# Get hosts in the specified host group
+hosts = zabbix.host.get(groupids=host_group_id, output=['hostid', 'host'])
+
+# Create email content
+email_content = "<h2>Zabbix Proxy Report</h2>"
+email_content += "<table border='1'><tr><th>Host</th><th>System Run Item Key</th><th>Last Value</th></tr>"
+
+# Iterate through hosts
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+
+    # Get items where item key contains system.run
+    system_run_items = zabbix.item.get(
+        hostids=host_id,
+        search={'key_': 'system.run.*'},
+        output=['key_', 'lastvalue']
+    )
+
+    for item in system_run_items:
+        item_key = item['key_']
+        last_value = item['lastvalue']
+
+        # Append data to the email content
+        email_content += f"<tr><td>{host_name}</td><td>{item_key}</td><td>{last_value}</td></tr>"
+
+# Close the HTML table
+email_content += "</table>"
+
+# Logout from Zabbix API
+zabbix.user.logout()
+
+# Sending email using smtplib
+from_email = 'amit_t@t.com'
+to_email = 'kumaramitnayak@gmail.com'
+smtp_server = 'your-smtp-server.com'
+subject = f'Zabbix Proxy Report {datetime.now().strftime("%Y-%m-%d")}'
+msg = MIMEMultipart()
+msg['From'] = from_email
+msg['To'] = to_email
+msg['Subject'] = subject
+msg.attach(MIMEText(email_content, 'html'))
+
+# Connect to the SMTP server and send the email
+with smtplib.SMTP(smtp_server) as server:
+    server.sendmail(from_email, to_email, msg.as_string())
+
+print(f'Email with Zabbix Proxy Report sent to {to_email}')
