@@ -1,0 +1,25 @@
+import subprocess
+import zipfile
+import os
+
+# Function to run a script
+def run_script(script_path):
+    subprocess.run(["python", script_path])
+
+# List of scripts to run
+scripts_to_run = ["script1.py", "script2.py", "script3.py", "script4.py"]
+
+# Run individual scripts
+for script in scripts_to_run:
+    run_script(script)
+
+# Create a zip file
+zip_filename = "output.zip"
+with zipfile.ZipFile(zip_filename, 'w') as zip_file:
+    # Add generated files to the zip file
+    for script in scripts_to_run:
+        generated_file = script.replace(".py", "_output.txt")  # Adjust the naming convention as needed
+        if os.path.exists(generated_file):
+            zip_file.write(generated_file)
+
+print(f"Zipped files into {zip_filename}")
