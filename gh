@@ -1,0 +1,12 @@
+SELECT
+    Application,
+    SUM(CASE WHEN Severity = 'Informational' THEN 1 ELSE 0 END) AS Informational,
+    SUM(CASE WHEN Severity = 'Warning' THEN 1 ELSE 0 END) AS Warning,
+    SUM(CASE WHEN Severity = 'Minor' THEN 1 ELSE 0 END) AS Minor,
+    SUM(CASE WHEN Severity = 'Major' THEN 1 ELSE 0 END) AS Major,
+    SUM(CASE WHEN Severity = 'Critical' THEN 1 ELSE 0 END) AS Critical,
+    SUM(CASE WHEN Severity = 'Notclassified' THEN 1 ELSE 0 END) AS Notclassified
+FROM
+    YourTableName
+GROUP BY
+    Application;
