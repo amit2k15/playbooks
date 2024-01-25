@@ -27,3 +27,6 @@ if __name__ == "__main__":
     process_excel(input_excel_file, output_excel_file)
 
     print(f"Zabbix command output has been written to {output_excel_file}")
+
+
+The monitoring strategy includes various tools and techniques such as Application Performance Monitoring (APM), Synthetic monitoring, Real User Monitoring (RUM), Log monitoring, and Infrastructure monitoring. This approach ensures a holistic view of the application's health and performance, allowing for effective support readiness
