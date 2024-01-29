@@ -1,28 +1,25 @@
-SET @Tool = 'Zabbix'; -- You can set this variable dynamically from Grafana
+SET @Tool = '$Tool';  -- Assign the variable value
 
-IF @Tool = 'Zabbix' THEN
-    -- Zabbix Query
-    SELECT 
-        Application,
-        SUM(CASE WHEN Severity = 'Informational' THEN 1 ELSE 0 END) AS Informational,
-        SUM(CASE WHEN Severity = 'Warning' THEN 1 ELSE 0 END) AS Warning,
-        SUM(CASE WHEN Severity = 'Minor' THEN 1 ELSE 0 END) AS Minor,
-        SUM(CASE WHEN Severity = 'Major' THEN 1 ELSE 0 END) AS Major,
-        SUM(CASE WHEN Severity = 'Critical' THEN 1 ELSE 0 END) AS Critical,
-        SUM(CASE WHEN Severity = 'Notclassified' THEN 1 ELSE 0 END) AS Notclassified
-    FROM 
-        PK_Alert
-    GROUP BY 
-        Application;
-    
-ELSEIF @Tool = 'Dynatrace' THEN
-    -- Dynatrace Query
-    SELECT 
-        Application,
-        Count
-    FROM 
-        DT;
+PREPARE stmt FROM 
+    CASE @Tool
+        WHEN 'Zabbix' THEN 
+            'SELECT
+                Application,
+                SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
+                SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
+                SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
+                SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
+                SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
+                SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
+            FROM
+                PK_Alert
+            GROUP BY
+                Application;'
+        WHEN 'Dynatrace' THEN
+            'SELECT Application, Count FROM DT;'
+        ELSE
+            'Invalid Tool'
+    END;
 
--- You can add more conditions for other tools if needed
-
-END IF;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
