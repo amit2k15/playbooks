@@ -1,0 +1,23 @@
+SET @query = 'SELECT * FROM history'; -- Set your query as a variable
+
+-- Choose which query to execute (1 for Q1, 2 for Q2)
+SET @choice = 1;
+
+-- Prepare the statement
+PREPARE stmt FROM @query;
+
+-- Execute the prepared statement based on the choice
+IF @choice = 1 THEN
+    EXECUTE stmt;
+ELSEIF @choice = 2 THEN
+    -- Modify the query as needed
+    SET @query = 'SELECT name FROM history';
+    DEALLOCATE PREPARE stmt; -- Deallocate the previous prepared statement
+    PREPARE stmt FROM @query; -- Prepare the new statement
+    EXECUTE stmt; -- Execute the new statement
+ELSE
+    SELECT 'Invalid choice';
+END IF;
+
+-- Deallocate the prepared statement
+DEALLOCATE PREPARE stmt;
