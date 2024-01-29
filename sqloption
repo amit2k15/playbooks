@@ -1,31 +1,29 @@
 DELIMITER //
 
-CREATE PROCEDURE Execute_Query(IN query_name VARCHAR(50))
+CREATE PROCEDURE ExecuteSystemQuery(IN system_name VARCHAR(255))
 BEGIN
-    DECLARE final_query VARCHAR(1000);
+    SET @query = '';
 
-    IF query_name = 'Zabbix' THEN
-        SET final_query = 'SELECT 
-                                Application,
-                                SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
-                                SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
-                                SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
-                                SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
-                                SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
-                                SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
-                            FROM 
-                                your_table_name
-                            GROUP BY 
-                                Application;';
-    ELSEIF query_name = 'Dynatrace' THEN
-        SET final_query = 'SELECT Application, Count FROM DT;';
-    ELSE
-        SET final_query = 'SELECT ''Invalid query name'' AS Result;';
+    IF system_name = 'Zabbix' THEN
+        SET @query = 'SELECT 
+                        Application,
+                        SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
+                        SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
+                        SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
+                        SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
+                        SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
+                        SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
+                    FROM 
+                        your_zabbix_table
+                    GROUP BY 
+                        Application';
+    ELSEIF system_name = 'Dynatrace' THEN
+        SET @query = 'SELECT Application, Count FROM your_dynatrace_table';
     END IF;
 
-    PREPARE stmt FROM final_query;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
-END//
+    PREPARE dynamic_query FROM @query;
+    EXECUTE dynamic_query;
+    DEALLOCATE PREPARE dynamic_query;
+END //
 
 DELIMITER ;
