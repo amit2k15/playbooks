@@ -1,26 +1,22 @@
-PREPARE stmt FROM 
-    CASE 
-        WHEN @Tool = 'Zabbix' THEN
-            'SELECT 
+SET @Tool = '$Tool';  -- Store the variable value for clarity
+
+PREPARE stmt FROM
+    CASE @Tool
+        WHEN 'Zabbix' THEN
+            'SELECT
                 Application,
-                SUM(CASE WHEN Severity = "Informational" THEN 1 ELSE 0 END) AS Informational,
-                SUM(CASE WHEN Severity = "Warning" THEN 1 ELSE 0 END) AS Warning,
-                SUM(CASE WHEN Severity = "Minor" THEN 1 ELSE 0 END) AS Minor,
-                SUM(CASE WHEN Severity = "Major" THEN 1 ELSE 0 END) AS Major,
-                SUM(CASE WHEN Severity = "Critical" THEN 1 ELSE 0 END) AS Critical,
-                SUM(CASE WHEN Severity = "Notclassified" THEN 1 ELSE 0 END) AS Notclassified
-            FROM 
-                PK_Alert
-            GROUP BY 
-                Application'
-        WHEN @Tool = 'Dynatrace' THEN
-            'SELECT 
-                Application,
-                Count
-            FROM 
-                DT'
-        ELSE 
-            'SELECT "Invalid Tool" AS Error'
+                SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
+                SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
+                SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
+                SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
+                SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
+                SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
+            FROM PK_Alert
+            GROUP BY Application'
+        WHEN 'Dynatrace' THEN
+            'SELECT Application, Count FROM DT'
+        ELSE
+            '-- Invalid Tool specified'  -- Handle invalid cases
     END;
 
 EXECUTE stmt;
