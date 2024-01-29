@@ -1,29 +1,28 @@
-DELIMITER //
+SET @Tool = 'Zabbix'; -- You can set this variable dynamically from Grafana
 
-CREATE PROCEDURE ExecuteSystemQuery(IN system_name VARCHAR(255))
-BEGIN
-    SET @query = '';
+IF @Tool = 'Zabbix' THEN
+    -- Zabbix Query
+    SELECT 
+        Application,
+        SUM(CASE WHEN Severity = 'Informational' THEN 1 ELSE 0 END) AS Informational,
+        SUM(CASE WHEN Severity = 'Warning' THEN 1 ELSE 0 END) AS Warning,
+        SUM(CASE WHEN Severity = 'Minor' THEN 1 ELSE 0 END) AS Minor,
+        SUM(CASE WHEN Severity = 'Major' THEN 1 ELSE 0 END) AS Major,
+        SUM(CASE WHEN Severity = 'Critical' THEN 1 ELSE 0 END) AS Critical,
+        SUM(CASE WHEN Severity = 'Notclassified' THEN 1 ELSE 0 END) AS Notclassified
+    FROM 
+        PK_Alert
+    GROUP BY 
+        Application;
+    
+ELSEIF @Tool = 'Dynatrace' THEN
+    -- Dynatrace Query
+    SELECT 
+        Application,
+        Count
+    FROM 
+        DT;
 
-    IF system_name = 'Zabbix' THEN
-        SET @query = 'SELECT 
-                        Application,
-                        SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
-                        SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
-                        SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
-                        SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
-                        SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
-                        SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
-                    FROM 
-                        your_zabbix_table
-                    GROUP BY 
-                        Application';
-    ELSEIF system_name = 'Dynatrace' THEN
-        SET @query = 'SELECT Application, Count FROM your_dynatrace_table';
-    END IF;
+-- You can add more conditions for other tools if needed
 
-    PREPARE dynamic_query FROM @query;
-    EXECUTE dynamic_query;
-    DEALLOCATE PREPARE dynamic_query;
-END //
-
-DELIMITER ;
+END IF;
