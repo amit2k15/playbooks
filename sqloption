@@ -1,23 +1,31 @@
-SET @query = 'SELECT * FROM history'; -- Set your query as a variable
+DELIMITER //
 
--- Choose which query to execute (1 for Q1, 2 for Q2)
-SET @choice = 1;
+CREATE PROCEDURE Execute_Query(IN query_name VARCHAR(50))
+BEGIN
+    DECLARE final_query VARCHAR(1000);
 
--- Prepare the statement
-PREPARE stmt FROM @query;
+    IF query_name = 'Zabbix' THEN
+        SET final_query = 'SELECT 
+                                Application,
+                                SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
+                                SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
+                                SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
+                                SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
+                                SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
+                                SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
+                            FROM 
+                                your_table_name
+                            GROUP BY 
+                                Application;';
+    ELSEIF query_name = 'Dynatrace' THEN
+        SET final_query = 'SELECT Application, Count FROM DT;';
+    ELSE
+        SET final_query = 'SELECT ''Invalid query name'' AS Result;';
+    END IF;
 
--- Execute the prepared statement based on the choice
-IF @choice = 1 THEN
+    PREPARE stmt FROM final_query;
     EXECUTE stmt;
-ELSEIF @choice = 2 THEN
-    -- Modify the query as needed
-    SET @query = 'SELECT name FROM history';
-    DEALLOCATE PREPARE stmt; -- Deallocate the previous prepared statement
-    PREPARE stmt FROM @query; -- Prepare the new statement
-    EXECUTE stmt; -- Execute the new statement
-ELSE
-    SELECT 'Invalid choice';
-END IF;
+    DEALLOCATE PREPARE stmt;
+END//
 
--- Deallocate the prepared statement
-DEALLOCATE PREPARE stmt;
+DELIMITER ;
