@@ -1,23 +1,26 @@
 SET @Tool = '$Tool';  -- Store the variable value for clarity
 
-PREPARE stmt FROM
-    CASE @Tool
-        WHEN 'Zabbix' THEN
-            'SELECT
-                Application,
-                SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
-                SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
-                SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
-                SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
-                SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
-                SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
-            FROM PK_Alert
-            GROUP BY Application'
-        WHEN 'Dynatrace' THEN
-            'SELECT Application, Count FROM DT'
-        ELSE
-            '-- Invalid Tool specified'  -- Handle invalid cases
-    END;
+SET @sql = ''; -- Initialize dynamic SQL string
 
+-- Construct dynamic SQL based on the value of @Tool
+IF @Tool = 'Zabbix' THEN
+    SET @sql = 'SELECT
+                    Application,
+                    SUM(CASE WHEN Severity = ''Informational'' THEN 1 ELSE 0 END) AS Informational,
+                    SUM(CASE WHEN Severity = ''Warning'' THEN 1 ELSE 0 END) AS Warning,
+                    SUM(CASE WHEN Severity = ''Minor'' THEN 1 ELSE 0 END) AS Minor,
+                    SUM(CASE WHEN Severity = ''Major'' THEN 1 ELSE 0 END) AS Major,
+                    SUM(CASE WHEN Severity = ''Critical'' THEN 1 ELSE 0 END) AS Critical,
+                    SUM(CASE WHEN Severity = ''Notclassified'' THEN 1 ELSE 0 END) AS Notclassified
+                FROM PK_Alert
+                GROUP BY Application';
+ELSEIF @Tool = 'Dynatrace' THEN
+    SET @sql = 'SELECT Application, Count FROM DT';
+ELSE
+    SET @sql = '-- Invalid Tool specified';  -- Handle invalid cases
+END IF;
+
+-- Prepare and execute dynamic SQL
+PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
