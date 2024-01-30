@@ -1,0 +1,16 @@
+Dear Mano,
+
+I hope this email finds you well. I am writing to inform you that we have successfully completed the testing of the heartbeat email notification failure by stopping the required SMTP services in the QA Server during our working session.
+
+Following your suggestions, we have made the necessary updates and implemented the heartbeat email monitoring on the Prod server. We have thoroughly reviewed the changes and are ready to proceed pending your approval. Please review the following updates and let us know if any further modifications or additional requirements are needed:
+
+Action Items:
+Updated Polling Frequency: We have adjusted the polling frequency for triggering heartbeat email notifications from 5 minutes to 1 hour to reduce unnecessary notifications and streamline the monitoring process.
+
+Changed Recipient: The heartbeat email trigger will now be sent to the designated distribution list (DL) instead of individual email addresses, ensuring that relevant stakeholders are kept informed.
+
+Configured Alerting for Email Sending Failures: We have configured alerting mechanisms to promptly notify us in case of any failures in sending heartbeat emails, enabling swift troubleshooting and resolution.
+
+Please review these changes at your earliest convenience and provide your feedback. If there are any additional requirements or adjustments needed, we are more than willing to accommodate them.
+
+Thank you for your continued guidance and support throughout this process. We look forward to your response and the successful implementation of these updates.
