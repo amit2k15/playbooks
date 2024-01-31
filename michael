@@ -1,0 +1,34 @@
+Hi Michael,
+
+I'm happy to report that we have successfully completed the Production DR failover testing of the Scaler 30600 service in both the CTC and ELR datacenters using Zabbix's self-healing module. Below are the details of the testing.
+
+Usecase:
+If all the nodes of scaler 30600 services would go down in any of the datacenters, Zabbix will detect and trigger a self-healing job to start the same service in the other datacenter, and vice versa.
+
+DR Testing Results:
+
+ELR Datacenter:
+
+Test Procedure:
+You and your team manually stopped the Scaler 30600 service on all nodes listed above.
+Zabbix Response:
+Zabbix correctly detected the outage and triggered an alert as expected.
+A notification was sent and an incident was created in ServiceNow for the specified DL and workgroup.
+The self-healing module automatically started the Scaler 30600 service in the CTC datacenter.
+Outcome: Successful failover to CTC datacenter.
+CTC Datacenter:
+
+Test Procedure:
+You and your team manually stopped the Scaler 30600 service on all nodes listed above.
+Zabbix Response:
+Zabbix detected the outage and triggered an alert as expected.
+A notification was sent and an incident was created in ServiceNow for the specified DL and workgroup.
+The self-healing module automatically started the Scaler 30600 service in the ELR datacenter.
+Outcome: Successful failover to ELR datacenter.
+Overall, the testing confirms that Zabbix's self-healing module effectively accomplishes automatic DR failover for the Scaler 30600 service between the CTC and ELR datacenters. This provides valuable redundancy and ensures service continuity in case of an outage in either datacenter.
+
+We will analyze the detailed logs and metrics from the testing to further ensure the stability and performance of the failover process. We will also document the steps and findings for future reference.
+
+Please let me know if you have any questions or require further details on the testing results.
+
+Thank you,
