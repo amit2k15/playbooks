@@ -32,3 +32,8 @@ We will analyze the detailed logs and metrics from the testing to further ensure
 Please let me know if you have any questions or require further details on the testing results.
 
 Thank you,
+
+You/Team manually stopped the services in all the above-mentioned nodes.
+Zabbix triggered an alert indicating that all the nodes went down.
+Upon triggering the alert, Zabbix sent a notification and created an incident to the specified distribution list and ServiceNow workgroup.
+Following the notification, Zabbix triggered a self-healing job and started the scaler 30600 service in the CTC Datacenter.
