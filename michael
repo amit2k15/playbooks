@@ -37,3 +37,16 @@ You/Team manually stopped the services in all the above-mentioned nodes.
 Zabbix triggered an alert indicating that all the nodes went down.
 Upon triggering the alert, Zabbix sent a notification and created an incident to the specified distribution list and ServiceNow workgroup.
 Following the notification, Zabbix triggered a self-healing job and started the scaler 30600 service in the CTC Datacenter.
+
+
+Dear Sheryl/Teja,
+
+I hope this email finds you well. Thank you for bringing the Grafana vulnerability alert to my attention. I have thoroughly reviewed the communication from Grafana and would like to reassure you that we have taken prompt action to address the reported issues.
+
+Upon investigation, we found that the vulnerability mentioned in the alert is associated with Basic authentication and older versions of Grafana. I want to clarify that, as of today, all our Grafana instances utilize LDAP authentication instead of Basic authentication. Additionally, we have proactively patched our Stage and test Grafana instances to the latest version, which is 10.3.2.
+
+I am pleased to inform you that we have scheduled an upgrade for our Production instance to the latest Grafana version during the upcoming weekend. This ensures that we are in full compliance with the recommended security measures and that any potential vulnerabilities are promptly addressed.
+
+With these measures in place, I believe we have effectively mitigated the risks associated with the vulnerabilities highlighted in the Grafana communication. Please feel free to reach out if you have any further questions or concerns.
+
+Thank you for your diligence in keeping us informed, and we remain committed to maintaining a secure and resilient system.
