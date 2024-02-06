@@ -1,0 +1,21 @@
+Hi Terry,
+
+Thanks for reaching out regarding the need for automatic restart of the Fax service.
+I understand the importance of ensuring uninterrupted fax communication, and I'm happy to discuss potential solutions.
+Based on our discussions, I've outlined the necessary action items and steps to implement the automatic restart functionality using Zabbix's self-healing solution.
+
+Discussion Points:
+
+Automatic Service Restart: It's imperative to configure the Fax service to restart automatically using Zabbix's self-heal solution. This will minimize downtime and ensure uninterrupted fax communication.
+
+Action Items:
+
+Alert Severity Adjustment: We need to downgrade the alert severity from major to minor to facilitate the automatic generation of incidents by Zabbix before the self-healing process kicks in. This adjustment will help streamline the incident management process and prevent unnecessary escalation to the WAR room.
+
+Zabbix Agent Modification: We'll need to modify the Zabbix agent configuration to enable the self-healing module, allowing for the automatic restart of the Fax service upon detection of downtime.
+
+Self-Healing Action Setup: It's essential to set up the self-healing action in Zabbix according to the requirements outlined by the application team. This includes defining triggers, actions, and notifications to ensure the timely and effective restoration of the Fax service.
+
+Please let me know if you have any further insights or concerns regarding the implementation process. 
+
+Looking forward to your feedback and collaboration on this matter.
