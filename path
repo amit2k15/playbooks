@@ -1,9 +1,13 @@
-Hi Michael,
+Hi Kedar,
 
 I hope this email finds you well.
 
-I've completed the cross-checking process on the provided servers, and I have some findings to share with you. Upon review, I noticed that the D:/hello path exists on all three servers as expected. However, the remaining paths do not appear to be present on all three servers except for D://He and D://hg, which are specifically present on apvrd35618.
+Thank you for reaching out regarding the adjustment of alert severities for specific mount points. I'd like to inform you that we have already configured the mount point monitoring status with Major severity triggers, which are set to escalate to a WAR room in case of failure. This solution was implemented through the creation of a specific template and an auto-discovery process.
 
-To ensure accuracy and alignment with our objectives, could you please double-check the paths and provide us with the exact paths that should be present on all servers? This will allow us to proceed effectively with our tasks.
+Changing the alert severity for a few select mount points would require a significant amount of manual effort and could potentially disrupt the current monitoring system. Given this consideration, we believe it might be more efficient to maintain consistency across all mount points, either with Major severity or Minor severity.
 
-Looking forward to your prompt response.
+Before proceeding with any changes, I kindly request you to review the current configuration and let us know if you still wish to adjust the severity for specific mount points. Your confirmation will help us ensure that our efforts align with your expectations and requirements.
+
+Please feel free to reach out if you have any further questions or concerns. We're here to assist you.
+
+Best regards,
