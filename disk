@@ -1,0 +1,11 @@
+The "% Disk Time" counter in Windows Performance Monitor (perf_counter_en) measures the percentage of elapsed time that the selected disk drive is busy servicing read or write requests. It's essential to note that this counter represents the percentage of time that the disk is busy, not the percentage of the disk's maximum capacity.
+
+There are several reasons why you might observe values exceeding 100% for the "% Disk Time" counter:
+
+Multiple Requests: If the disk is heavily utilized and multiple read or write requests are queued, the "% Disk Time" counter can exceed 100%. This indicates that the disk is working at maximum capacity and additional requests are being queued for processing.
+
+Disk Queuing: When the disk is unable to keep up with the incoming read or write requests, requests will be queued for processing. As a result, the "% Disk Time" counter can exceed 100% as the disk is spending more time servicing queued requests than it would under normal operating conditions.
+
+Sampling Interval: The "% Disk Time" counter is sampled at specific intervals, and during periods of high disk activity, the sampling interval may not capture all the activity accurately. Short bursts of high activity may lead to values above 100% during individual sampling intervals.
+
+Performance Counter Precision: The precision of performance counters, especially in heavily loaded systems, may not always accurately reflect the exact disk utilization. Fluctuations in system load and resource contention can influence the reported values.
