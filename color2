@@ -5,14 +5,6 @@ from datetime import datetime
 import openpyxl
 from zabbix_api import ZabbixAPI
 
-def get_color(value):
-    if value >= 90:
-        return "red"
-    elif 85 <= value < 90:
-        return "orange"
-    else:
-        return "green"
-
 # Zabbix server information
 zabbix_server = 'http://your-zabbix-server.com/zabbix'
 zabbix_user = 'your-username'
@@ -36,6 +28,18 @@ hosts = zabbix.host.get(groupids=host_group_id, output=['hostid', 'host'])
 email_content = "<h2>Zabbix Proxy Report</h2>"
 email_content += "<table border='1'><tr><th>Host</th><th>CPU Utilization (%)</th><th>Memory Utilization (%)</th><th>Queue</th><th>Uptime (days)</th><th>Last Seen (seconds)</th></tr>"
 
+# Define color function
+def get_color(value):
+    if value is not None:
+        if value >= 90:
+            return 'Red'
+        elif value >= 85 and value < 90:
+            return 'Orange'
+        else:
+            return 'Green'
+    else:
+        return 'N/A'
+
 # Iterate through hosts
 for host in hosts:
     host_id = host['hostid']
@@ -45,27 +49,38 @@ for host in hosts:
     cpu_util = zabbix.item.get(hostids=host_id, search={'key_': 'system.cpu.util'}, output=['lastvalue'])[0]['lastvalue']
     cpu_util = round(float(cpu_util), 2) if cpu_util else None
 
+    cpu_color = get_color(cpu_util)
+
     # Get Memory Utilization
     memory_util = zabbix.item.get(hostids=host_id, search={'key_': 'vm.memory.utilization'}, output=['lastvalue'])[0]['lastvalue']
     memory_util = round(float(memory_util), 2) if memory_util else None
 
+    memory_color = get_color(memory_util)
+
     # Get Queue
     queue = zabbix.item.get(hostids=host_id, search={'key_': 'zabbix[queue,10m]'}, output=['lastvalue'])[0]['lastvalue']
+
+    queue_color = get_color(float(queue))
 
     # Get Uptime
     uptime_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'system.uptime'}, output=['lastvalue'])[0]['lastvalue']
     uptime_days = round(float(uptime_seconds) / (24 * 60 * 60), 2) if uptime_seconds else None
 
+    uptime_color = get_color(uptime_days)
+
     # Get Last Seen
     last_seen_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'zabbix[proxy,{HOST.HOST},lastaccess]'}, output=['lastvalue'])[0]['lastvalue']
     last_seen_seconds = float(last_seen_seconds) if last_seen_seconds else None
 
-    # Calculate Last Seen in seconds
-    current_time_seconds = datetime.now().timestamp()
-    last_seen_difference = current_time_seconds - last_seen_seconds if last_seen_seconds else None
+    last_seen_difference = None
+    if last_seen_seconds:
+        current_time_seconds = datetime.now().timestamp()
+        last_seen_difference = current_time_seconds - last_seen_seconds
+
+    last_seen_color = get_color(last_seen_difference)
 
     # Append data to the email content
-    email_content += f"<tr><td>{host_name}</td><td bgcolor='{get_color(cpu_util)}'>{cpu_util}</td><td bgcolor='{get_color(memory_util)}'>{memory_util}</td><td>{queue}</td><td>{uptime_days}</td><td>{last_seen_difference}</td></tr>"
+    email_content += f"<tr><td>{host_name}</td><td style='color:{'Red' if 'Red' in [cpu_color, memory_color, queue_color, uptime_color, last_seen_color] else 'Orange' if 'Orange' in [cpu_color, memory_color, queue_color, uptime_color, last_seen_color] else 'Green'}'>{cpu_util}</td><td style='color:{memory_color}'>{memory_util}</td><td style='color:{queue_color}'>{queue}</td><td style='color:{uptime_color}'>{uptime_days}</td><td style='color:{last_seen_color}'>{last_seen_difference}</td></tr>"
 
 # Close the HTML table
 email_content += "</table>"
@@ -77,7 +92,7 @@ zabbix.user.logout()
 from_email = 'amit_t@t.com'
 to_email = 'kumaramitnayak@gmail.com'
 smtp_server = 'your-smtp-server.com'
-subject = f'Zabbix Proxy Report {datetime.now().strftime("%Y-%m-%d")}'
+subject = f'Zabbix Proxy Report {"RED" if "Red" in email_content else "ORANGE" if "Orange" in email_content else "GREEN"} {datetime.now().strftime("%Y-%m-%d")}'
 
 msg = MIMEMultipart()
 msg['From'] = from_email
