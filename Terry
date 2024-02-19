@@ -5,7 +5,7 @@ from datetime import datetime
 from pyzabbix import ZabbixAPI
 
 # Zabbix server information
-zabbix_server = 'http://prod-zabbix.optum.com/zabbix'
+zabbix_server = 'your zabbix URL'
 zabbix_user = 'api'
 zabbix_password = 'api@123'
 
