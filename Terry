@@ -116,3 +116,17 @@ print(f'Email with Zabbix Proxy Report sent to {to_email}')
 fs_util_d = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size[D:,pused]'}, output=['lastvalue'])[0]['lastvalue']
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
 IndexError: list index out of range
+
+Python
+try:
+    fs_util_d = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size[D:,pused]'}, output=['lastvalue'])[0]['lastvalue']
+except IndexError:
+    fs_util_d = 'NA'
+
+Python
+fs_util_d_items = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size[D:,pused]'}, output=['lastvalue'])
+
+if len(fs_util_d_items) > 0:
+    fs_util_d = fs_util_d_items[0]['lastvalue']
+else:
+    fs_util_d = 'NA'
