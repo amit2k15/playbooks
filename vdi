@@ -116,3 +116,24 @@ with smtplib.SMTP(smtp_server) as server:
 
 print(f'Email with Zabbix Proxy Report sent to {to_email}')
 
+table_content = """
+<table border="1">
+  <tr>
+    <th>Threshold</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>Green Clear</td>
+    <td><85</td>
+  </tr>
+  <tr>
+    <td>Orange Minor</td>
+    <td>>=85 & <90</td>
+  </tr>
+  <tr>
+    <td>Red Major</td>
+    <td>>=90</td>
+  </tr>
+</table>
+"""
+
