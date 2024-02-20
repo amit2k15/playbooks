@@ -1,1 +1,118 @@
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime
+from pyzabbix import ZabbixAPI
+
+# Zabbix server information
+zabbix_server = 'your zabbix URL'
+zabbix_user = 'api'
+zabbix_password = 'api@123'
+
+# Host group name
+host_group_name = 'OWCA-ATO'
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_server)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get host group ID
+host_group = zabbix.hostgroup.get(filter={'name': host_group_name})
+host_group_id = host_group[0]['groupid']
+
+# Get hosts in the specified host group
+hosts = zabbix.host.get(groupids=host_group_id, output=['hostid', 'host'])
+
+# Create email content
+email_content = "Hi Team,<br>Please find status RxsImaging at 7 AM CT.</br><br>Detailed Report:</br>"
+email_content += "<table border='1'><tr><th>Host</th><th>Uptime (days)</th><th>CPU Utilization (%)</th><th>Memory Utilization (%)</th><th>File System Utilization - C (%)</th><th>File System Utilization - D (%)</th><th>File System Utilization - E (%)</th></tr>"
+
+# Function to get color based on threshold
+def get_color(value):
+    if value is not None:
+        if value >= 90:
+            return "red"
+        elif value >= 85:
+            return "orange"
+    return "green"
+
+# Iterate through hosts
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+
+    # Get CPU Utilization
+    try:
+        cpu_util = zabbix.item.get(hostids=host_id, search={'key_': 'system.cpu.util'}, output=['lastvalue'])[0]['lastvalue']
+        cpu_util = round(float(cpu_util), 2) if cpu_util else None
+    except IndexError:
+        cpu_util = None
+
+    # Get Memory Utilization
+    try:
+        memory_util = zabbix.item.get(hostids=host_id, search={'key_': 'vm.memory.util'}, output=['lastvalue'])[0]['lastvalue']
+        memory_util = round(float(memory_util), 2) if memory_util else None
+    except IndexError:
+        memory_util = None
+
+    # Get File System Utilization - C
+    try:
+        fs_util_c = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size[C:,pused]'}, output=['lastvalue'])[0]['lastvalue']
+        fs_util_c = round(float(fs_util_c), 2) if fs_util_c else None
+    except IndexError:
+        fs_util_c = None
+
+    # Get File System Utilization - D
+    try:
+        fs_util_d = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size[D:,pused]'}, output=['lastvalue'])[0]['lastvalue']
+        fs_util_d = round(float(fs_util_d), 2) if fs_util_d else None
+    except IndexError:
+        fs_util_d = None
+
+    # Get File System Utilization - E
+    try:
+        fs_util_e = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size[E:,pused]'}, output=['lastvalue'])[0]['lastvalue']
+        fs_util_e = round(float(fs_util_e), 2) if fs_util_e else None
+    except IndexError:
+        fs_util_e = None
+
+    # Get Uptime
+    uptime_seconds = zabbix.item.get(hostids=host_id, search={'key_': 'system.uptime'}, output=['lastvalue'])[0]['lastvalue']
+    uptime_days = round(float(uptime_seconds) / (24 * 60 * 60), 2) if uptime_seconds else None
+
+    # Append data to the email content
+    email_content += f"<tr><td>{host_name}</td><td style='color:{get_color(uptime_days)}'>{uptime_days}</td><td style='color:{get_color(cpu_util)}'>{cpu_util}</td><td style='color:{get_color(memory_util)}'>{memory_util}</td><td style='color:{get_color(fs_util_c)}'>{fs_util_c}</td><td style='color:{get_color(fs_util_d)}'>{fs_util_d}</td><td style='color:{get_color(fs_util_e)}'>{fs_util_e}</td></tr>"
+
+# Close the HTML table
+email_content += "</table>"
+email_content += "<br>Regards,</br>ORx-Zabbix Team, OptumRx<br></br><br>*** This is an automatically generated email – please do not reply to it. If you have any queries regarding the report please email to orx_zabbix_support@ds.uhc.com ***</br>"
+
+# Logout from Zabbix API
+zabbix.user.logout()
+
+# Sending email using smtplib
+from_email = 'zabbix@optum.com'
+to_email = 'amit_nayak@optum.com'
+smtp_server = 'mailo2.uhc.com'
+subject = f'Health Check Automation -  {datetime.now().strftime("%Y-%m-%d")} - Morning 7 AM CT - '
+
+# Determine subject based on color
+if 'red' in email_content:
+    subject += " RED"
+elif 'orange' in email_content:
+    subject += " ORANGE"
+else:
+    subject += " GREEN"
+
+msg = MIMEMultipart()
+msg['From'] = from_email
+msg['To'] = to_email
+msg['Subject'] = subject
+msg.attach(MIMEText(email_content, 'html'))
+
+# Connect to the SMTP server and send the email
+with smtplib.SMTP(smtp_server) as server:
+    server.sendmail(from_email, to_email, msg.as_string())
+
+print(f'Email with Zabbix Proxy Report sent to {to_email}')
 
