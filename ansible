@@ -1,0 +1,60 @@
+---
+- name: Gather server information and check communication
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: Get OS version
+      ansible.builtin.set_fact:
+        os_version: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Get MySQL version
+      ansible.builtin.shell: mysql --version | awk '{print $5}'
+      register: mysql_version
+
+    - name: Check communication to specific servers
+      ansible.builtin.wait_for:
+        host: "{{ item }}"
+        port: 10051
+        state: started
+        timeout: 5
+      with_items:
+        - apvrd35618
+        - apvrd35619
+        - apvrd35620
+      ignore_errors: yes
+
+  handlers:
+    - name: Install xlwt library
+      ansible.builtin.pip:
+        name: xlwt
+        state: present
+
+    - name: Generate Excel sheet
+      ansible.builtin.shell: |
+        python - <<END
+        import xlwt
+
+        # Create a new workbook and add a worksheet
+        workbook = xlwt.Workbook()
+        worksheet = workbook.add_sheet('Server Information')
+
+        # Write headers
+        headers = ['Server', 'OS Version', 'MySQL Version', 'Communication']
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header)
+
+        # Write server information
+        servers = [
+            {"name": "{{ inventory_hostname }}", "os_version": "{{ os_version }}", "mysql_version": "{{ mysql_version.stdout }}", "communication": "{{ 'Success' if item is succeeded else 'Failed' }}"}
+            for item in ansible_play_hosts
+        ]
+        for row, server in enumerate(servers, start=1):
+            worksheet.write(row, 0, server['name'])
+            worksheet.write(row, 1, server['os_version'])
+            worksheet.write(row, 2, server['mysql_version'])
+            worksheet.write(row, 3, server['communication'])
+
+        # Save the workbook
+        workbook.save('server_information.xls')
+        END
