@@ -1,0 +1,25 @@
+Hi Terry,
+
+I hope this email finds you well. I wanted to provide some clarification regarding the Zabbix agent configuration and the observed log entries you mentioned.
+
+Our Zabbix agent is configured to use two different methods for capturing data: Active and Passive.
+
+Active Method:
+
+This involves the Zabbix Agent actively pushing data to the Zabbix central server.
+We utilize this method for specific monitoring requirements, such as:
+Log monitoring
+Custom monitoring integrations (e.g., File presence monitoring, SMTP monitoring, AD monitoring)
+Passive Method:
+
+In this method, the Zabbix central server fetches information from the Zabbix Agent.
+We primarily use this method for basic infrastructure monitoring, covering parameters like:
+CPU usage
+Memory usage
+Disk status
+FileSystem metrics, etc.
+It appears that in the servers you mentioned, the Zabbix Active method is not utilized. As a result, you are observing log entries related to this method in the log files. This is expected behavior when the Active method is not actively used.
+
+If you have any further questions or if there's anything specific you'd like to discuss or investigate regarding these log entries, please feel free to reach out. We're here to ensure the monitoring system operates smoothly and meets our requirements.
+
+Thank you for your understanding.
