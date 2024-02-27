@@ -1,0 +1,68 @@
+Here's a Python script that connects to a MySQL database, executes a query, formats the results into an HTML table with expiration days highlighted, and sends the output via email using the `smtplib` module along with `pymysql` for database connectivity:
+
+```python
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import pymysql
+from datetime import datetime
+
+# Connect to MySQL database
+connection = pymysql.connect(host='your_host',
+                             user='your_username',
+                             password='your_password',
+                             database='your_database',
+                             cursorclass=pymysql.cursors.DictCursor)
+
+# Execute query
+with connection.cursor() as cursor:
+    sql = "SELECT username, expiry_date FROM password_expiry"
+    cursor.execute(sql)
+    results = cursor.fetchall()
+
+# Close MySQL connection
+connection.close()
+
+# HTML email content
+email_content = "<html><body><p>Hi Team,<br>Please find Password Expiry for Rxmacro:</p>"
+email_content += "<table border='1'><tr><th>Username</th><th>Expiry Date</th></tr>"
+
+# Function to highlight expiry days
+def highlight_expiry(expiry_date):
+    days_left = (expiry_date - datetime.now()).days
+    if days_left <= 30:
+        return "<font color='red'>" + str(days_left) + "</font>"
+    elif days_left <= 60:
+        return "<font color='orange'>" + str(days_left) + "</font>"
+    elif days_left <= 90:
+        return "<font color='yellow'>" + str(days_left) + "</font>"
+    else:
+        return str(days_left)
+
+# Add results to HTML table
+for row in results:
+    email_content += f"<tr><td>{row['username']}</td><td>{highlight_expiry(row['expiry_date'])}</td></tr>"
+
+# Close the HTML table and add closing tags
+email_content += "</table><p>Regards,<br>ORx-Zabbix Team, OptumRx<br><br>*** This is an automatically generated email – please do not reply to it. If you have any queries regarding the report please email to orx_zabbix_support@ds.uhc.com ***</p></body></html>"
+
+# Sending email using smtplib
+from_email = 'zabbix@optum.com'
+to_email = 'amit_nayak@optum.com'
+smtp_server = 'mailo2.uhc.com'
+subject = f'Password Expiry Notification -  {datetime.now().strftime("%Y-%m-%d")} - RxMacro - '
+
+msg = MIMEMultipart()
+msg['From'] = from_email
+msg['To'] = to_email
+msg['Subject'] = subject
+msg.attach(MIMEText(email_content, 'html'))
+
+# Connect to the SMTP server and send the email
+with smtplib.SMTP(smtp_server) as server:
+    server.sendmail(from_email, to_email, msg.as_string())
+
+print(f'Email with Zabbix Proxy Report sent to {to_email}')
+```
+
+Make sure to replace `'your_host'`, `'your_username'`, `'your_password'`, and `'your_database'` with your MySQL database credentials and database name respectively. Also, ensure that your MySQL database has a table named `password_expiry` with columns `username` and `expiry_date`.
