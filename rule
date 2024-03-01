@@ -1,0 +1,20 @@
+Subject: Request to Enable Communication from New Zabbix Application Nodes to Genoa Servers
+
+Dear [Recipient],
+
+I hope this email finds you well. We are writing to inform you that we are part of the Zabbix monitoring team responsible for overseeing several servers for the Genoa application. Currently, as part of our Product Lifecycle Management (PLM) initiative, we are in the process of migrating our Zabbix application from our old system to a new one.
+
+As we transition to the new system, it's crucial that we enable communication from our new application nodes to the Genoa servers on port 10051 and ICMP. We have already established communication from our old application server to the Genoa servers.
+
+To facilitate this transition smoothly, we kindly request your assistance in providing us with a sample rule/example for reference, which we can replicate for our new application nodes. One such example is as follows:
+
+- Rule: Allow communication from apvrd35618 to hskaiww on port 10051
+
+We appreciate your prompt attention to this matter and look forward to your assistance in enabling communication for our new application nodes.
+
+Thank you for your cooperation.
+
+Best regards,
+[Your Name]
+[Your Position]
+[Your Contact Information]
