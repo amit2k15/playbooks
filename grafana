@@ -1,0 +1,21 @@
+Subject: Persistent TNS No Client Error Issue in Grafana
+
+Dear [Grafana Vendor],
+
+I hope this email finds you well. I am writing to bring to your attention a recurring issue that we have been experiencing with Grafana, specifically related to Oracle database connectivity.
+
+Over the past several weekends, our monitoring system has detected instances of TNS No Client errors occurring within Grafana, particularly during certain periods, lasting for a few hours at a time. However, it's noteworthy that these errors seem to resolve on their own when we actively monitor database queries.
+
+We have diligently investigated this issue, involving both our database team and network team, yet despite our efforts, we have been unable to pinpoint the root cause. Our database team has conducted thorough checks and insists that no issues have been found on the database side. Similarly, our network team has confirmed that there are no errors or issues within the network infrastructure.
+
+Given the intermittent nature of this problem and the fact that it resolves itself without any intervention on our part, we are facing challenges in identifying and resolving the underlying cause. As this issue impacts our monitoring capabilities and potentially affects the reliability of our Grafana dashboards, we are reaching out to you for assistance and guidance in troubleshooting and resolving this matter.
+
+We kindly request your expertise and support in investigating this issue further. Any insights, recommendations, or suggestions you can provide would be greatly appreciated as we work towards resolving this issue and ensuring the stability and performance of our Grafana setup.
+
+Thank you for your attention to this matter. We look forward to your prompt response and assistance in addressing this ongoing concern.
+
+Best regards,
+
+[Your Name]
+[Your Position]
+[Your Company/Organization]
