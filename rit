@@ -1,0 +1,18 @@
+Subject: Update on Firewall Rule Request for Application Migration
+
+Dear Team,
+
+I hope this email finds you well.
+
+I wanted to inform you that we have initiated the process of enabling a firewall rule to facilitate communication between our Genoa Zabbix proxy servers and the ORX Zabbix application nodes. To achieve this, we have raised a Requested Item Task Management (RITM) with the relevant details.
+
+It's important to note that this action is part of our application migration process, where we are upgrading our instances to adhere to the standards, especially with the impending end of support for RHEL 7. As a reminder, the Genoa team had previously raised a firewall request, resulting in the creation of Risk Record 5383.
+
+Now, as we transition our applications to new instances, we require the firewall communication to be established between our new application nodes and the existing Genoa proxy servers. According to the firewall team's instructions, we need to update the aforementioned risk record with the RITM we have raised for the new request. This ensures a seamless migration process.
+
+Your cooperation in updating the risk record with the relevant RITM details is greatly appreciated. This will enable the firewall team to proceed with the necessary actions promptly.
+
+Thank you for your attention to this matter.
+
+Best regards,
+[Your Name]
