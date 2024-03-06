@@ -1,0 +1,23 @@
+Subject: Progress Update on Zabbix Alert Ticket
+
+Dear Hari,
+
+I hope this email finds you well. Following our discussion last week regarding the problem ticket raised due to alerts triggered from Zabbix related to LOB database monitoring, I wanted to provide you with an update on our progress.
+
+As per our conversation, we have initiated work on addressing the TNS listener error issue, which tends to occur primarily during weekends. Notably, we have observed a decrease in occurrences during peak season times.
+
+Here are the key points we discussed today:
+
+1. We will proceed with the installation of JDBC on the Zabbix DB proxy to facilitate further debugging on the server side during the next occurrence of the issue.
+2. Additionally, we will install SQL Developer client on the Zabbix DB proxy to enhance our diagnostic capabilities.
+3. To better monitor LOB databases, we will deploy a new DB proxy in CTC DC dedicated solely to this task.
+4. A ticket has been raised with the Grafana vendor to investigate the root cause of the issue from the Grafana tool's perspective.
+
+We are committed to resolving this issue promptly and will keep you updated on any developments. Should you have any further insights or suggestions, please don't hesitate to share them with us.
+
+Thank you for your cooperation and understanding.
+
+Best regards,
+[Your Name]  
+[Your Position]  
+[Your Contact Information]
