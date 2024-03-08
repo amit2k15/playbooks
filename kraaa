@@ -1,0 +1,19 @@
+Subject: Request for Full Privileges for Zabbix Application Database
+
+Dear Kranthi,
+
+I hope this email finds you well. 
+
+As per our recent discussion, it's imperative for the Zabbix application to have full privileges on the specific database to operate smoothly, as outlined in the official documentation. Granting temporary permissions during the activity timeframe and revoking them afterward could lead to unexpected issues, inconsistency, and potential application crashes.
+
+To ensure the seamless functioning of our application, I kindly request your support in providing full privileges to the Zabbix application database. As agreed, we will initiate a PEX (Permission Exception) to facilitate this request.
+
+Your cooperation in this matter is greatly appreciated, and please feel free to reach out if you have any further questions or concerns.
+
+Thank you for your attention to this matter.
+
+Best regards,
+
+[Your Name]  
+[Your Position]  
+[Your Contact Information]
