@@ -1,0 +1,22 @@
+from pyzabbix import ZabbixAPI
+
+# Zabbix API credentials
+ZABBIX_URL = 'http://your-zabbix-server/api_jsonrpc.php'
+ZABBIX_USER = 'your_username'
+ZABBIX_PASSWORD = 'your_password'
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(ZABBIX_URL)
+zabbix.login(ZABBIX_USER, ZABBIX_PASSWORD)
+
+# Get online Zabbix users
+users = zabbix.user.get(filter={'gui_access': 0})
+online_users = [user['alias'] for user in users if user['status'] == '1']
+
+# Print online users
+print("Online Zabbix Users:")
+for user in online_users:
+    print(user)
+
+# Logout from Zabbix API
+zabbix.user.logout()
