@@ -17,3 +17,21 @@ Best regards,
 [Your Name]
 [Your Position/Title]
 [Your Contact Information]
+
+Subject: Resolution of Vulnerability Triggered on Zabbix Webserver
+
+Dear Bruce,
+
+I hope this email finds you well. As per our recent discussion regarding the vulnerability triggered on the Zabbix webserver due to RHEL7, I am pleased to inform you that we have successfully migrated our web application to a new RHEL 8 server to overcome this issue.
+
+We will now closely monitor the new system over the next two days to ensure everything is functioning smoothly. Following this monitoring period, we plan to decommission the old server early next week.
+
+Please review the changes and let us know if you have any questions or concerns. Your feedback is valuable to us, and we are committed to ensuring the security and stability of our systems.
+
+Thank you for your attention to this matter.
+
+Best regards,
+
+[Your Name]
+[Your Position]
+[Your Contact Information]
