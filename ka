@@ -1,4 +1,4 @@
-Subject: Investigation Results: Zabbix Alerts Data Sync Issue
+iiSubject: Investigation Results: Zabbix Alerts Data Sync Issue
 
 Dear Kranthi,
 
@@ -35,3 +35,28 @@ Best regards,
 [Your Name]
 [Your Position]
 [Your Contact Information]
+
+#!/bin/bash
+
+# Check if username and password are provided as arguments
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <username> <password>"
+    exit 1
+fi
+
+# Extract username and password from command-line arguments
+username="$1"
+password="$2"
+
+# Function to check password status
+check_password_status() {
+    # Attempt to change password non-interactively
+    if echo "$password" | su "$username" -c "echo success" &>/dev/null; then
+        echo "Password for $username is working."
+    else
+        echo "Password for $username is not working."
+    fi
+}
+
+# Call the function to check password status
+check_password_status
