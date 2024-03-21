@@ -1,19 +1,15 @@
-Subject: Request for Full Privileges for Zabbix Application Database
+Subject: Issue with Trigger Details and Response Code Visibility in Oneview Portal
 
-Dear Kranthi,
+Dear [NIC's Name],
 
-I hope this email finds you well. 
+I hope this message finds you well. I am writing to bring to your attention an issue we have observed in the Oneview portal for the X application. Currently, we can only see the URL and timeout value, but crucial information such as trigger details and response codes are not visible on the Oneview portal. It's worth noting that we have already configured triggers for the same in Zabbix.
 
-As per our recent discussion, it's imperative for the Zabbix application to have full privileges on the specific database to operate smoothly, as outlined in the official documentation. Granting temporary permissions during the activity timeframe and revoking them afterward could lead to unexpected issues, inconsistency, and potential application crashes.
+Could you please investigate this issue at your earliest convenience? It is essential for us to have visibility into trigger details and response codes within the Oneview portal for effective monitoring and troubleshooting.
 
-To ensure the seamless functioning of our application, I kindly request your support in providing full privileges to the Zabbix application database. As agreed, we will initiate a PEX (Permission Exception) to facilitate this request.
-
-Your cooperation in this matter is greatly appreciated, and please feel free to reach out if you have any further questions or concerns.
-
-Thank you for your attention to this matter.
+Your prompt attention to this matter would be greatly appreciated. Thank you for your assistance, and please let us know if you need any further information from our end.
 
 Best regards,
 
-[Your Name]  
-[Your Position]  
+[Your Name]
+[Your Position]
 [Your Contact Information]
