@@ -1,62 +1,28 @@
-iiSubject: Investigation Results: Zabbix Alerts Data Sync Issue
-
-Dear Kranthi,
-
-I hope this email finds you well.
-
-I wanted to update you on the investigation regarding the alerts triggered from Zabbix. After cross-verifying the alerts, it has been identified that there was indeed a data sync issue with the Zabbix database. This issue led to the problem resolution delay until [insert timestamp].
-
-Upon analyzing further, we recognize that data sync issues can stem from various factors such as network latency or high database server load. Our team is diligently working on cross-verifying these potential causes to determine the exact reason behind the alerts.
-
-Rest assured, we are committed to resolving this matter promptly and will provide you with updates on our findings as soon as they become available.
-
-Thank you for your patience and understanding.
-
-Best regards,
-
-[Your Name]
-[Your Position/Title]
-[Your Contact Information]
-
-Subject: Resolution of Vulnerability Triggered on Zabbix Webserver
-
-Dear Bruce,
-
-I hope this email finds you well. As per our recent discussion regarding the vulnerability triggered on the Zabbix webserver due to RHEL7, I am pleased to inform you that we have successfully migrated our web application to a new RHEL 8 server to overcome this issue.
-
-We will now closely monitor the new system over the next two days to ensure everything is functioning smoothly. Following this monitoring period, we plan to decommission the old server early next week.
-
-Please review the changes and let us know if you have any questions or concerns. Your feedback is valuable to us, and we are committed to ensuring the security and stability of our systems.
-
-Thank you for your attention to this matter.
-
-Best regards,
-
-[Your Name]
-[Your Position]
-[Your Contact Information]
-
 #!/bin/bash
 
-# Check if username and password are provided as arguments
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 <username> <password>"
+# Check if all arguments are provided
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 servername username password"
     exit 1
 fi
 
-# Extract username and password from command-line arguments
-username="$1"
-password="$2"
+# Assign arguments to variables
+SERVER="$1"
+USERNAME="$2"
+PASSWORD="$3"
 
-# Function to check password status
-check_password_status() {
-    # Attempt to change password non-interactively
-    if echo "$password" | su "$username" -c "echo success" &>/dev/null; then
-        echo "Password for $username is working."
+# Function to check if password is valid
+check_password() {
+    # Try to SSH into the server using sshpass
+    sshpass -p "$PASSWORD" ssh -o BatchMode=yes -o ConnectTimeout=5 "$USERNAME"@"$SERVER" "echo success" 2>/dev/null
+    
+    # Check the exit status of the SSH command
+    if [ $? -eq 0 ]; then
+        echo "Password is working."
     else
-        echo "Password for $username is not working."
+        echo "Password is NOT working."
     fi
 }
 
-# Call the function to check password status
-check_password_status
+# Call the function to check the password
+check_password
