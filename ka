@@ -1,28 +1,25 @@
 #!/bin/bash
 
-# Check if all arguments are provided
-if [ "$#" -ne 3 ]; then
+# Check if all required arguments are provided
+if [ $# -ne 3 ]; then
     echo "Usage: $0 servername username password"
     exit 1
 fi
 
 # Assign arguments to variables
-SERVER="$1"
-USERNAME="$2"
-PASSWORD="$3"
+servername=$1
+username=$2
+password=$3
 
-# Function to check if password is valid
+# Function to check if password is correct
 check_password() {
-    # Try to SSH into the server using sshpass
-    sshpass -p "$PASSWORD" ssh -o BatchMode=yes -o ConnectTimeout=5 "$USERNAME"@"$SERVER" "echo success" 2>/dev/null
-    
-    # Check the exit status of the SSH command
+    sshpass -p "$1" ssh -o StrictHostKeyChecking=no "$2"@"$3" exit &> /dev/null
     if [ $? -eq 0 ]; then
-        echo "Password is working."
+        echo "Password is correct."
     else
-        echo "Password is NOT working."
+        echo "Password is incorrect."
     fi
 }
 
-# Call the function to check the password
-check_password
+# Call the function with provided arguments
+check_password "$password" "$username" "$servername"
