@@ -1,0 +1,60 @@
+from pyzabbix import ZabbixAPI
+import csv
+
+# Zabbix server details
+zabbix_url = 'http://your_zabbix_server_ip/zabbix'
+zabbix_user = 'your_zabbix_username'
+zabbix_password = 'your_zabbix_password'
+
+# Host group name to retrieve data from
+host_group_name = 'Your Host Group Name'
+
+# Connect to Zabbix API
+zabbix = ZabbixAPI(zabbix_url)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Get host group ID
+host_group = zabbix.hostgroup.get(filter={'name': host_group_name})
+if not host_group:
+    print(f"Host group '{host_group_name}' not found.")
+    exit()
+
+host_group_id = host_group[0]['groupid']
+
+# Get hosts in the host group
+hosts = zabbix.host.get(groupids=[host_group_id])
+
+# Prepare CSV file
+csv_file = open('windows_server_file_system_utilization.csv', 'w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(['Host', 'Filesystem', 'Total Space (GB)', 'Used Space (GB)', 'Free Space (GB)', 'Utilization (%)'])
+
+# Iterate through hosts and get file system information
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+
+    # Get file system information for the host
+    file_systems = zabbix.item.get(hostids=host_id, search={'key_': 'vfs.fs.size'}, output=['name', 'key_'])
+
+    for fs in file_systems:
+        fs_name = fs['name']
+        fs_key = fs['key_']
+
+        # Get total space
+        total_space_item = zabbix.item.get(hostids=host_id, search={'key_': f'{fs_key}.size[total]'}, output=['lastvalue'])
+        total_space_gb = float(total_space_item[0]['lastvalue']) / (1024 * 1024 * 1024) if total_space_item else 0
+
+        # Get used space
+        used_space_item = zabbix.item.get(hostids=host_id, search={'key_': f'{fs_key}.used'}, output=['lastvalue'])
+        used_space_gb = float(used_space_item[0]['lastvalue']) / (1024 * 1024 * 1024) if used_space_item else 0
+
+        # Calculate free space and utilization
+        free_space_gb = total_space_gb - used_space_gb
+        utilization = (used_space_gb / total_space_gb) * 100 if total_space_gb > 0 else 0
+
+        # Write data to CSV
+        csv_writer.writerow([host_name, fs_name, round(total_space_gb, 2), round(used_space_gb, 2), round(free_space_gb, 2), round(utilization, 2)])
+
+csv_file.close()
+print("Data written to windows_server_file_system_utilization.csv")
