@@ -1,0 +1,82 @@
+import pyzabbix
+import csv
+
+# Zabbix server credentials
+ZABBIX_SERVER = "https://your-zabbix-server"
+ZABBIX_USER = "your-zabbix-username"
+ZABBIX_PASSWORD = "your-zabbix-password"
+
+# Target host group name
+HOSTGROUP_NAME = "Windows Servers"
+
+# Function to extract drive letters from item keys
+def extract_drive_letters(item_keys):
+    drive_letters = set()
+    for key in item_keys:
+        if "vfs.fs.size" in key:
+            drive_letters.add(key.split("[")[1].split(",")[0])
+    return drive_letters
+
+# Connect to Zabbix API
+zapi = pyzabbix.ZabbixAPI(ZABBIX_SERVER)
+zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
+
+# Get host group ID
+hostgroup = zapi.hostgroup.get(filter={"name": HOSTGROUP_NAME})[0]
+hostgroup_id = hostgroup["groupid"]
+
+# Get hosts in the host group
+hosts = zapi.host.get(groupids=hostgroup_id)
+
+# Open CSV file for writing
+with open("filesystem_data.csv", "w", newline="") as csvfile:
+    csv_writer = csv.writer(csvfile)
+    csv_writer.writerow(["Host_Name", "Drive_Letter", "Total_space(GB)", "Used_space(GB)", "Free_Space(GB)", "Space_Utilization(%)"])
+
+    # Process each host
+    for host in hosts:
+        host_id = host["hostid"]
+        host_name = host["host"]
+
+        # Get all item keys with 'vfs.fs.size'
+        item_keys = [item["key_"] for item in zapi.item.get(hostids=host_id)]
+
+        # Extract drive letters
+        drive_letters = extract_drive_letters(item_keys)
+
+        # Fetch data for each drive letter
+        for drive_letter in drive_letters:
+            try:
+                total_space_value = zapi.item.get(
+                    hostids=host_id,
+                    search={"key_": f"vfs.fs.size[{drive_letter},total]"},
+                    output=["lastvalue"],
+                )[0]["lastvalue"]
+
+                used_space_value = zapi.item.get(
+                    hostids=host_id,
+                    search={"key_": f"vfs.fs.size[{drive_letter},used]"},
+                    output=["lastvalue"],
+                )[0]["lastvalue"]
+
+                space_utilization_value = zapi.item.get(
+                    hostids=host_id,
+                    search={"key_": f"vfs.fs.size[{drive_letter},pused]"},
+                    output=["lastvalue"],
+                )[0]["lastvalue"]
+
+                # Calculate free space
+                free_space_value = float(total_space_value) - float(used_space_value)
+
+                csv_writer.writerow(
+                    [
+                        host_name,
+                        drive_letter,
+                        total_space_value,
+                        used_space_value,
+                        free_space_value,
+                        space_utilization_value,
+                    ]
+                )
+            except Exception as e:
+                print(f"Error fetching data for {host_name}:{drive_letter}: {e}")
