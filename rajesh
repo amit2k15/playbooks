@@ -1,49 +1,9 @@
-#!/bin/bash
+Hi Neha,
 
-# Zabbix API URL and credentials
-ZABBIX_URL="http://your_zabbix_server/api_jsonrpc.php"
-ZABBIX_USER="your_username"
-ZABBIX_PASS="your_password"
+I hope you're doing well. I wanted to update you regarding the server you mentioned. After cross-verifying, we found that it is indeed our primary DB server and is managed by the DBA team.
 
-# Host and macro details
-HOST_NAME="your_host_name"
-MACRO_NAME="{$NAYAK}"
-DATE_FORMAT=$(date +"%d.%m.%Y")
+Regarding the workload during the specified timeframe, I've asked Kranthi to check if any backups or other jobs are running at that time. We will ensure to provide you with an update once we have checked and confirmed the status.
 
-# Login to Zabbix API and get authentication token
-auth_token=$(curl -s -X POST -H "Content-Type: application/json" -d '{
-    "jsonrpc": "2.0",
-    "method": "user.login",
-    "params": {
-        "user": "'$ZABBIX_USER'",
-        "password": "'$ZABBIX_PASS'"
-    },
-    "id": 1
-}' $ZABBIX_URL | jq -r '.result')
+Thank you for bringing this to our attention, and we appreciate your understanding.
 
-# Get host ID
-host_id=$(curl -s -X POST -H "Content-Type: application/json" -d '{
-    "jsonrpc": "2.0",
-    "method": "host.get",
-    "params": {
-        "output": ["hostid"],
-        "filter": {
-            "host": ["'$HOST_NAME'"]
-        }
-    },
-    "auth": "'$auth_token'",
-    "id": 2
-}' $ZABBIX_URL | jq -r '.result[0].hostid')
-
-# Update macro value
-curl -s -X POST -H "Content-Type: application/json" -d '{
-    "jsonrpc": "2.0",
-    "method": "usermacro.update",
-    "params": {
-        "hostid": "'$host_id'",
-        "macro": "'$MACRO_NAME'",
-        "value": "'$DATE_FORMAT'"
-    },
-    "auth": "'$auth_token'",
-    "id": 3
-}' $ZABBIX_URL
+Best regards,
