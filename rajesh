@@ -1,14 +1,49 @@
-Hi Rajesh,
+#!/bin/bash
 
-I hope this email finds you well.
+# Zabbix API URL and credentials
+ZABBIX_URL="http://your_zabbix_server/api_jsonrpc.php"
+ZABBIX_USER="your_username"
+ZABBIX_PASS="your_password"
 
-I wanted to inform you that we temporarily disabled the email action on our Zabbix server due to our monthly patching schedule. This was necessary to ensure the smooth and secure operation of our systems.
+# Host and macro details
+HOST_NAME="your_host_name"
+MACRO_NAME="{$NAYAK}"
+DATE_FORMAT=$(date +"%d.%m.%Y")
 
-Rest assured, the email action will be re-enabled shortly, and you can expect to receive notifications as usual once the patching process is complete.
+# Login to Zabbix API and get authentication token
+auth_token=$(curl -s -X POST -H "Content-Type: application/json" -d '{
+    "jsonrpc": "2.0",
+    "method": "user.login",
+    "params": {
+        "user": "'$ZABBIX_USER'",
+        "password": "'$ZABBIX_PASS'"
+    },
+    "id": 1
+}' $ZABBIX_URL | jq -r '.result')
 
-If you have any concerns or questions, please feel free to reach out to us.
+# Get host ID
+host_id=$(curl -s -X POST -H "Content-Type: application/json" -d '{
+    "jsonrpc": "2.0",
+    "method": "host.get",
+    "params": {
+        "output": ["hostid"],
+        "filter": {
+            "host": ["'$HOST_NAME'"]
+        }
+    },
+    "auth": "'$auth_token'",
+    "id": 2
+}' $ZABBIX_URL | jq -r '.result[0].hostid')
 
-Thank you for your understanding.
-
-Best regards,
-[Your Name]
+# Update macro value
+curl -s -X POST -H "Content-Type: application/json" -d '{
+    "jsonrpc": "2.0",
+    "method": "usermacro.update",
+    "params": {
+        "hostid": "'$host_id'",
+        "macro": "'$MACRO_NAME'",
+        "value": "'$DATE_FORMAT'"
+    },
+    "auth": "'$auth_token'",
+    "id": 3
+}' $ZABBIX_URL
