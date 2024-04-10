@@ -1,5 +1,12 @@
-I had a detailed discussion with Neha from the storage team. She mentioned that they use a specialized tool called the storage array to monitor the performance of the storage device, along with connected backend devices such as hypervisors and VMs. They conduct daily health checks using this tool.
+Dear Courtney,
 
-Neha informed me that they observed high utilization specifically on our MySQL server. This situation could potentially impact other applications since they are connected to the same storage device. That's why they reached out to us to address this concern.
+I hope this email finds you well. Please find attached the custom scripts status report for both tpau2prod and tpau2dolprod servers, including the alert severity and monitoring intervals that we are currently monitoring in Zabbix.
 
-Unfortunately, Neha mentioned that they cannot provide access to the storage array tool to other teams. It's exclusively utilized by the storage team for monitoring purposes.
+Regarding the tpau2dol server, I have conducted a cross-verification. Unfortunately, I noticed that communication is no longer happening from any of our Zabbix proxies on port 22. This is impacting our ability to monitor the appmgr account authentication and execute the custom scripts effectively.
+
+To enable monitoring and proceed further, we need to allow communication through the firewall. Could you please assist in making the necessary adjustments to allow communication on port 22 for our Zabbix proxies?
+
+To enable monitoring and ensure seamless functionality, we will need to allow communication in the firewall. Kindly let me know the next steps or any further information required from my end to proceed with resolving this issue.
+Your prompt attention to this matter would be greatly appreciated.
+
+Thank you for your cooperation.
