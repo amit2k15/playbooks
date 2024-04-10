@@ -1,9 +1,5 @@
-Hi Neha,
+I had a detailed discussion with Neha from the storage team. She mentioned that they use a specialized tool called the storage array to monitor the performance of the storage device, along with connected backend devices such as hypervisors and VMs. They conduct daily health checks using this tool.
 
-I hope you're doing well. I wanted to update you regarding the server you mentioned. After cross-verifying, we found that it is indeed our primary DB server and is managed by the DBA team.
+Neha informed me that they observed high utilization specifically on our MySQL server. This situation could potentially impact other applications since they are connected to the same storage device. That's why they reached out to us to address this concern.
 
-Regarding the workload during the specified timeframe, I've asked Kranthi to check if any backups or other jobs are running at that time. We will ensure to provide you with an update once we have checked and confirmed the status.
-
-Thank you for bringing this to our attention, and we appreciate your understanding.
-
-Best regards,
+Unfortunately, Neha mentioned that they cannot provide access to the storage array tool to other teams. It's exclusively utilized by the storage team for monitoring purposes.
