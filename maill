@@ -1,0 +1,25 @@
+# Send CSV file through email
+email_subject = "Filesystem Data Report"
+email_body = "Please find attached the filesystem data report."
+
+# Set up SMTP server and port
+smtp_server = "your-smtp-server"
+smtp_port = 587
+
+# Create message container
+msg = MIMEMultipart()
+msg['From'] = "your-email@example.com"
+msg['To'] = "kumaramitnayak@gmail.com"
+msg['Subject'] = email_subject
+
+# Attach the CSV file to the email
+attachment = open(csv_file_name, "rb")
+part = MIMEBase('application', 'octet-stream')
+part.set_payload(attachment.read())
+encoders.encode_base64(part)
+part.add_header('Content-Disposition', f'attachment; filename= {csv_file_name}')
+msg.attach(part)
+
+# Send the email
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    server.send_message(msg)
