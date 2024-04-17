@@ -1,0 +1,18 @@
+import shutil
+
+# Source file on Unix server
+source_file = '/path/to/source/file.txt'
+
+# Destination file on Windows file server
+destination_file = r'\\apvrd35618.he.com\amit_test\file.txt'
+
+try:
+    # Copy the file
+    shutil.copy(source_file, destination_file)
+    print(f"File copied successfully to {destination_file}")
+except FileNotFoundError:
+    print("Source file not found.")
+except PermissionError:
+    print("Permission denied.")
+except Exception as e:
+    print(f"Error: {e}")
