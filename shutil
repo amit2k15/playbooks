@@ -1,4 +1,8 @@
 import shutil
+import logging
+
+# Set up logging
+logging.basicConfig(filename='file_copy.log', level=logging.DEBUG)
 
 # Source file on Unix server
 source_file = '/path/to/source/file.txt'
@@ -9,10 +13,14 @@ destination_file = r'\\apvrd35618.he.com\amit_test\file.txt'
 try:
     # Copy the file
     shutil.copy(source_file, destination_file)
+    logging.info(f"File copied successfully to {destination_file}")
     print(f"File copied successfully to {destination_file}")
 except FileNotFoundError:
+    logging.error("Source file not found.")
     print("Source file not found.")
 except PermissionError:
+    logging.error("Permission denied.")
     print("Permission denied.")
 except Exception as e:
+    logging.error(f"Error: {e}")
     print(f"Error: {e}")
