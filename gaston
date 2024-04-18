@@ -1,0 +1,16 @@
+Dear Gaston,
+
+I hope this email finds you well. Following up on our recent meeting regarding certificate monitoring, I wanted to provide you with the updates as discussed:
+
+Discussed Items:
+
+Venafi Certificate integration in Grafana for the group.
+Alert and notification creation for Venafi certificates in Zabbix, set at 90/60/30 days prior to expiry.
+Monitoring feasibility of cloud-based certificates not present in Venafi.
+Action Items:
+
+Amit has successfully shared the Grafana dashboard link (Completed).
+Satya is in the process of sharing the keystore file containing all certificates present in Azure.
+We are actively working on implementing these initiatives and will keep you updated on our progress.
+
+Best regards,
