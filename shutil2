@@ -1,0 +1,11 @@
+# Copy the file to the Windows file server
+try:
+    os.system(f'net use "{file_server_path}" /user:{file_server_user} {file_server_pass}')
+    os.system(f'copy "{csv_filename}" "{file_server_path}"')
+    os.system(f'net use "{file_server_path}" /delete')
+    print(f"File copied to {file_server_path}")
+except Exception as e:
+    print(f"Failed to copy file to Windows file server: {e}")
+
+# Remove the CSV file after copying and sending email
+os.remove(csv_filename)
