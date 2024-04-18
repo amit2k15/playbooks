@@ -1,21 +1,27 @@
 import subprocess
 
-# Source file path on RHEL 7 server
-source_file = '/path/to/source/file.txt'
+def copy_file_to_windows(file_path, windows_share_path):
+    # Escape backslashes in the Windows share path
+    windows_share_path = windows_share_path.replace('\\', '\\\\')
 
-# Destination file path on Windows file server
-destination_path = '\\\\apvrd35618\\zabbix_report'
+    # Construct the smbclient command to copy the file
+    command = [
+        'smbclient',
+        windows_share_path,
+        '-c', f'send "{file_path}"',
+        '--no-pass',  # Do not prompt for a password
+        '-N'  # Use guest access
+    ]
 
-# Build the smbclient command
-smbclient_command = [
-    'smbclient',
-    '-N',  # Do not prompt for password
-    '-c', f'put {source_file} {destination_path}'
-]
+    # Execute the smbclient command
+    try:
+        subprocess.run(command, check=True)
+        print(f'File "{file_path}" copied successfully to Windows file server at "{windows_share_path}".')
+    except subprocess.CalledProcessError as e:
+        print(f'Error copying file to Windows file server: {e}')
 
-# Run smbclient command using subprocess
-try:
-    subprocess.run(smbclient_command, check=True)
-    print('File copied successfully!')
-except subprocess.CalledProcessError as e:
-    print(f'Error: {e}')
+# Example usage
+file_path = '/path/to/your/file.txt'
+windows_share_path = '//apvrd35618/zabbix_report'
+
+copy_file_to_windows(file_path, windows_share_path)
