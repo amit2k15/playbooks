@@ -1,18 +1,15 @@
-import shutil
-import os
+import subprocess
 
-# Define paths
-csv_filename = 'your_csv_file.csv'
-file_server_path = '\\\\apvrd35618\\zabbix_report'
+# Define the source file and Windows file server path
+source_file = '/path/to/Diplomat_win_server.csv'
+windows_server_path = '\\\\apvrd35618\\zabbix_report'
 
-# Debugging output
-print(f"Copying file {csv_filename} to {file_server_path}")
+# Define the smbclient command
+smbclient_command = f'smbclient {windows_server_path} -c "put {source_file}"'
 
-# Copy the file
-shutil.copy(csv_filename, f'{file_server_path}\\{csv_filename}')
-
-# Check if the file exists after copying
-if os.path.exists(f'{file_server_path}\\{csv_filename}'):
-    print("File copied successfully")
-else:
-    print("Error: File not copied")
+# Run the smbclient command using subprocess
+try:
+    subprocess.run(smbclient_command, shell=True, check=True)
+    print('File copied successfully.')
+except subprocess.CalledProcessError as e:
+    print(f'Error copying file: {e}')
