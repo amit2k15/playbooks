@@ -1,18 +1,1 @@
-Here's a draft for your email reply:
-
----
-
-Subject: Re: Certificate Expiry Issue
-
-Dear [Recipient's Name],
-
-Thank you for bringing this to my attention. I have had a discussion with the application team regarding the certificate expiry issue. It has been confirmed that the problem arose due to the expiration of the Salesforce certificate, which is a 3rd party vendor certificate.
-
-As a result of this expiration, the handshake between MemberPortal and Salesforce was lost, leading to the inability to send emails. I want to clarify that while email communication failed, there was no functional impact beyond this.
-
-We are working on renewing the certificate and ensuring that such issues are addressed promptly to avoid any further disruptions.
-
-Please let me know if you need any additional information or assistance regarding this matter.
-
-Best regards,
-[Your Name]
+system.run[powershell -command "& {Get-Service -Name 'Zabbix Agent' | Select-Object -ExpandProperty Status}"]
