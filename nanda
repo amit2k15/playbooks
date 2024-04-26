@@ -1,0 +1,40 @@
+import pandas as pd
+import mysql.connector
+
+# Define MySQL connection parameters
+db_config = {
+    'user': 'your_username',
+    'password': 'your_password',
+    'host': 'your_host',
+    'database': 'rvtools'
+}
+
+# Establish MySQL connection
+conn = mysql.connector.connect(**db_config)
+cursor = conn.cursor()
+
+# Read Excel sheet
+excel_file = 'path_to_your_excel_file.xlsx'
+df = pd.read_excel(excel_file)
+
+# Extract columns A, E, L, H, O
+selected_columns = df[['A', 'E', 'L', 'H', 'O']]
+
+# Define MySQL table and columns
+table_name = 'your_table_name'
+columns = ', '.join(selected_columns.columns)
+
+# Create MySQL table
+create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns})"
+cursor.execute(create_table_query)
+
+# Insert records into MySQL table
+for _, row in selected_columns.iterrows():
+    values = tuple(row.values)
+    insert_query = f"INSERT INTO {table_name} ({columns}) VALUES {values}"
+    cursor.execute(insert_query)
+
+# Commit changes and close connections
+conn.commit()
+cursor.close()
+conn.close()
