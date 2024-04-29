@@ -1,0 +1,20 @@
+SELECT
+    r.session_id,
+    r.start_time,
+    r.status,
+    r.command,
+    r.wait_type,
+    r.wait_time,
+    r.last_wait_type,
+    r.cpu_time,
+    r.total_elapsed_time,
+    r.reads,
+    r.writes,
+    r.logical_reads,
+    t.text AS query_text
+FROM
+    sys.dm_exec_requests AS r
+CROSS APPLY
+    sys.dm_exec_sql_text(r.sql_handle) AS t
+WHERE
+    r.total_elapsed_time > 10000; -- Adjust the threshold as needed (in milliseconds)
