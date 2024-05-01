@@ -1,11 +1,1 @@
-Dear Ben,
-
-I hope this message finds you well.
-
-As discussed recently, I wanted to inform you that I have successfully automated the file system utilization report for diplomat servers. The report is scheduled to generate at 5 AM CST on a daily basis, and you will receive it through email as per our conversation.
-
-I wanted to inform you that while I can dump a copy of the report into the designated file server from my local system, we encountered an error when attempting to push it from our automation server. We are currently working on an alternative solution to automate this process and ensure seamless delivery of the report. We are actively working on finding an alternative solution to automate this process and ensure the report is deposited seamlessly. I will keep you updated on our progress in resolving this issue.
-
-If you have any questions or concerns regarding this matter, please feel free to reach out. Your input is valuable as we work towards a smoother automation process.
-
-Thank you for your understanding and cooperation.
+20 6 */10 * * /path/to/python3 /path/to/report.py
