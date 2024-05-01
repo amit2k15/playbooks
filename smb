@@ -1,0 +1,35 @@
+from smbprotocol.client import Client
+import os
+import datetime
+
+def copy_to_remote_server(local_path, remote_path, username=None, password=None):
+    try:
+        client = Client("apvrdshs", username=username, password=password)
+        client.connect()
+        
+        # Generate the filename with today's date
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        filename = f"report_{today}.csv"
+        
+        # Open local file
+        with open(local_path, "rb") as local_file:
+            # Create remote file
+            with client.create_file(remote_path + filename) as remote_file:
+                # Write data to remote file
+                remote_file.write(local_file.read())
+        
+        client.disconnect()
+        print("File uploaded successfully to the remote server.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+# Specify your local CSV file path
+local_csv_path = "/path/to/local/file.csv"
+# Specify the remote Windows file server path
+remote_server_path = "\\\\apvrdshs\\zw_re\\"
+
+# Copy to remote server without credentials (assuming authentication is not required)
+copy_to_remote_server(local_csv_path, remote_server_path)
+
+# If you need to copy with credentials:
+# copy_to_remote_server(local_csv_path, remote_server_path, username="your_username", password="your_password")
