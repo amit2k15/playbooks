@@ -1,0 +1,44 @@
+import csv
+from pyzabbix import ZabbixAPI
+
+# Zabbix server URL
+zabbix_url = 'https://your_zabbix_server_url/zabbix'
+# Zabbix API credentials
+username = 'your_username'
+password = 'your_password'
+
+# Initialize Zabbix API
+zabbix = ZabbixAPI(url=zabbix_url, user=username, password=password)
+
+# Specify the host groups to monitor
+host_groups = ['Group A', 'Group B']
+
+# Initialize CSV writer
+with open('service_status.csv', 'w', newline='') as csvfile:
+    fieldnames = ['Host Group', 'Status']
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for group_name in host_groups:
+        # Get hosts in the current group
+        hosts = zabbix.host.get(group=group_name, output=['name', 'hostid'])
+
+        # Check service status for each host
+        all_up = True
+        for host in hosts:
+            # Get service status for the item containing "helloworld.exe"
+            items = zabbix.item.get(hostids=host['hostid'], search={'key_': 'helloworld.exe'}, output=['lastvalue', 'name'])
+            
+            # Check if any service is down
+            for item in items:
+                if item['lastvalue'] != '1':  # Assuming '1' means UP status
+                    all_up = False
+                    break
+
+        # Write status to CSV
+        if all_up:
+            writer.writerow({'Host Group': group_name, 'Status': 'UP'})
+        else:
+            writer.writerow({'Host Group': group_name, 'Status': 'Down'})
+
+print('Service status captured in service_status.csv file.')
