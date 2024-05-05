@@ -1,0 +1,18 @@
+Subject: Urgent Discussion Needed: Enterprise Zabbix Agent Issues
+
+Dear [Enterprise Zabbix Team],
+
+I hope this email finds you well. We urgently need to address some critical issues related to the recent deployment of the Enterprise Zabbix agent on our servers. 
+
+Firstly, the deployment was done without any prior notification, leading to unexpected disruptions and significant challenges. The ownership of our Zabbix log directory and files has been altered to the 'zabbixagent' user, resulting in the loss of logs and the failure of auto-restart functionality for the Zabbix agent, proxy, and server.
+
+Additionally, we have observed that the remote command execution parameter 'enable' has been activated in the Zabbix agent configuration. This raises serious security concerns as it grants the Zabbix agent the capability to execute commands/system actions, posing a potential risk to our systems' integrity and security.
+
+Despite our attempts to rectify the situation by stopping the agent and adjusting permissions, we have noticed that permissions revert, and the Zabbix agent resumes operation automatically.
+
+It is imperative that we discuss these issues at the earliest to find a resolution and prevent further disruptions and security risks. Please let us know your availability for a meeting or call so that we can address these concerns promptly.
+
+Looking forward to your swift response.
+
+Best regards,
+[Your Name]
