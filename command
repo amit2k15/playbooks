@@ -13,4 +13,14 @@ FROM sys.dm_exec_requests r
 CROSS APPLY sys.dm_exec_sql_text(sql_handle) AS t
 WHERE STATUS = 'RUNNING'
   AND total_elapsed_time > @threshold_seconds * 1000 -- Replace @threshold_seconds with your desired threshold in seconds
-ORDER BY total_elapsed_time DESC;
+ORDER BY total_elapsed_time DESC
+
+SELECT 
+  SCHEMA_NAME(schema_id) AS schema_name,
+  OBJECT_NAME(query_id) AS query_name,
+  last_elapsed_time/1000 AS last_elapsed_time_sec,
+  execution_count
+FROM sys.dm_exec_query_stats
+WHERE last_elapsed_time > @threshold_seconds * 1000 -- Replace @threshold_seconds with your desired threshold in seconds
+ORDER BY last_elapsed_time DESC;
+
