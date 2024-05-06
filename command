@@ -36,3 +36,17 @@ CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) s
 WHERE r.status = 'running'
 ORDER BY r.total_elapsed_time DESC;
 
+SELECT TOP 10
+    r.session_id AS SessionID,
+    r.start_time AS StartTime,
+    s.text AS QueryText,
+    r.total_elapsed_time / 1000.0 AS TotalElapsedTimeSeconds,
+    r.logical_reads AS LogicalReads,
+    r.reads AS Reads,
+    r.writes AS Writes,
+    r.cpu_time AS CPUTime
+FROM sys.dm_exec_requests r
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) s
+WHERE r.status = 'running'
+ORDER BY r.total_elapsed_time DESC;
+
