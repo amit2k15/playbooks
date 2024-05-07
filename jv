@@ -1,73 +1,30 @@
-import requests
-import xlsxwriter
+import pandas as pd
+from pyzabbix import ZabbixAPI
 
-# Zabbix API credentials
-ZABBIX_API_URL = 'https://your_zabbix_server/zabbix/api_jsonrpc.php'
-ZABBIX_USERNAME = 'your_username'
-ZABBIX_PASSWORD = 'your_password'
+# Zabbix server details
+zabbix_server = 'https://your_zabbix_server'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
-# Zabbix API authentication
-def zabbix_login():
-    payload = {
-        'jsonrpc': '2.0',
-        'method': 'user.login',
-        'params': {
-            'user': ZABBIX_USERNAME,
-            'password': ZABBIX_PASSWORD,
-        },
-        'id': 1,
-        'auth': None,
-    }
-    response = requests.post(ZABBIX_API_URL, json=payload)
-    return response.json()['result']
+# Initialize Zabbix API
+zapi = ZabbixAPI(zabbix_server)
+zapi.login(zabbix_user, zabbix_password)
 
-# Get host items with item key containing "jmx"
-def get_host_items(auth_token):
-    payload = {
-        'jsonrpc': '2.0',
-        'method': 'item.get',
-        'params': {
-            'output': ['name', 'hostid', 'key_', 'status'],
-            'selectHosts': ['host'],
-            'filter': {'key_': 'jmx'},
-            'sortfield': 'name',
-        },
-        'auth': auth_token,
-        'id': 1,
-    }
-    response = requests.post(ZABBIX_API_URL, json=payload)
-    return response.json()['result']
+# Get hosts with item key containing 'jmx'
+hosts = zapi.host.get(filter={'status': 0}, selectGroups='extend', output=['host', 'groups'])
+jmx_hosts = [host for host in hosts if any('jmx' in item['key_'] for item in zapi.item.get(hostids=host['hostid'], output=['key_']))]
 
-# Generate Excel report
-def generate_excel_report(items):
-    workbook = xlsxwriter.Workbook('zabbix_report.xlsx')
-    worksheet = workbook.add_worksheet()
+# Extract host information
+data = []
+for host in jmx_hosts:
+    host_name = host['host']
+    host_group = host['groups'][0]['name'] if host['groups'] else ''
+    status = 'Up' if host['status'] == '0' else 'Down'
+    data.append({'Host Name': host_name, 'Host Group': host_group, 'Status': status})
 
-    # Write headers
-    headers = ['Host Name', 'Host Group Name', 'Item Name', 'Status']
-    for col, header in enumerate(headers):
-        worksheet.write(0, col, header)
+# Create DataFrame and Excel file
+df = pd.DataFrame(data)
+excel_file = 'jmx_hosts_report.xlsx'
+df.to_excel(excel_file, index=False)
 
-    # Write data
-    for row, item in enumerate(items, start=1):
-        host_name = item['hosts'][0]['host']
-        host_group_name = item['hosts'][0]['groups'][0]['name']
-        item_name = item['name']
-        status = item['status']
-
-        worksheet.write(row, 0, host_name)
-        worksheet.write(row, 1, host_group_name)
-        worksheet.write(row, 2, item_name)
-        worksheet.write(row, 3, status)
-
-    workbook.close()
-    print('Excel report generated successfully.')
-
-# Main function
-def main():
-    auth_token = zabbix_login()
-    host_items = get_host_items(auth_token)
-    generate_excel_report(host_items)
-
-if __name__ == '__main__':
-    main()
+print(f"Report generated and saved to {excel_file}")
