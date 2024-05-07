@@ -1,0 +1,40 @@
+import pandas as pd
+from pyzabbix import ZabbixAPI
+
+# Zabbix server credentials
+zabbix_url = 'http://your_zabbix_server_url/zabbix'
+zabbix_user = 'your_zabbix_username'
+zabbix_password = 'your_zabbix_password'
+
+# Initialize Zabbix API
+zabbix = ZabbixAPI(zabbix_url)
+zabbix.login(zabbix_user, zabbix_password)
+
+# Define the host group and item key for JVM monitoring
+host_group_name = 'YourHostGroupName'
+item_key = 'jmx["java.lang:type=Memory",HeapMemoryUsage]'
+
+# Get hosts in the specified host group
+hosts = zabbix.host.get(group=host_group_name, output=['hostid', 'host', 'status'])
+
+# Extract host information
+host_data = []
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+    host_status = 'Online' if host['status'] == '0' else 'Offline'
+
+    # Get host group name
+    host_groups = zabbix.hostgroup.get(hostids=host_id, output=['name'])
+    host_group = host_groups[0]['name'] if host_groups else 'N/A'
+
+    host_data.append({'Host Name': host_name, 'Host Group': host_group, 'Status': host_status})
+
+# Convert data to DataFrame
+df = pd.DataFrame(host_data)
+
+# Save data to Excel
+excel_file = 'jvm_monitoring_report.xlsx'
+df.to_excel(excel_file, index=False)
+
+print(f"Report generated and saved to {excel_file}")
