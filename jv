@@ -1,30 +1,73 @@
-import pandas as pd
-from pyzabbix import ZabbixAPI
+import requests
+import xlsxwriter
 
-# Zabbix server credentials
-zabbix_url = 'https://your_zabbix_server.com'
-zabbix_user = 'your_username'
-zabbix_password = 'your_password'
+# Zabbix API credentials
+ZABBIX_API_URL = 'https://your_zabbix_server/zabbix/api_jsonrpc.php'
+ZABBIX_USERNAME = 'your_username'
+ZABBIX_PASSWORD = 'your_password'
 
-# Connect to Zabbix API
-zapi = ZabbixAPI(zabbix_url)
-zapi.login(zabbix_user, zabbix_password)
+# Zabbix API authentication
+def zabbix_login():
+    payload = {
+        'jsonrpc': '2.0',
+        'method': 'user.login',
+        'params': {
+            'user': ZABBIX_USERNAME,
+            'password': ZABBIX_PASSWORD,
+        },
+        'id': 1,
+        'auth': None,
+    }
+    response = requests.post(ZABBIX_API_URL, json=payload)
+    return response.json()['result']
 
-# Get hosts with items related to JVM monitoring
-hosts = zapi.host.get(output='extend', selectGroups='extend', selectItems='extend')
-jvm_hosts = []
-for host in hosts:
-    for item in host['items']:
-        if 'jmx' in item['key_']:
-            jvm_hosts.append({
-                'Host Name': host['host'],
-                'Host Group': host['groups'][0]['name'],
-                'Status': host['status']
-            })
+# Get host items with item key containing "jmx"
+def get_host_items(auth_token):
+    payload = {
+        'jsonrpc': '2.0',
+        'method': 'item.get',
+        'params': {
+            'output': ['name', 'hostid', 'key_', 'status'],
+            'selectHosts': ['host'],
+            'filter': {'key_': 'jmx'},
+            'sortfield': 'name',
+        },
+        'auth': auth_token,
+        'id': 1,
+    }
+    response = requests.post(ZABBIX_API_URL, json=payload)
+    return response.json()['result']
 
-# Create DataFrame and export to Excel
-df = pd.DataFrame(jvm_hosts)
-df.to_excel('jvm_monitoring_report.xlsx', index=False)
+# Generate Excel report
+def generate_excel_report(items):
+    workbook = xlsxwriter.Workbook('zabbix_report.xlsx')
+    worksheet = workbook.add_worksheet()
 
-# Logout from Zabbix API
-zapi.logout()
+    # Write headers
+    headers = ['Host Name', 'Host Group Name', 'Item Name', 'Status']
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header)
+
+    # Write data
+    for row, item in enumerate(items, start=1):
+        host_name = item['hosts'][0]['host']
+        host_group_name = item['hosts'][0]['groups'][0]['name']
+        item_name = item['name']
+        status = item['status']
+
+        worksheet.write(row, 0, host_name)
+        worksheet.write(row, 1, host_group_name)
+        worksheet.write(row, 2, item_name)
+        worksheet.write(row, 3, status)
+
+    workbook.close()
+    print('Excel report generated successfully.')
+
+# Main function
+def main():
+    auth_token = zabbix_login()
+    host_items = get_host_items(auth_token)
+    generate_excel_report(host_items)
+
+if __name__ == '__main__':
+    main()
