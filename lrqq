@@ -1,0 +1,18 @@
+SELECT
+    r.session_id AS SessionID,
+    s.status AS Status,
+    DB_NAME(r.database_id) AS DatabaseName,
+    r.command AS CommandType,
+    r.cpu_time AS CPUTime_ms,
+    r.reads AS Reads,
+    r.writes AS Writes,
+    s.login_time AS LoginTime,
+    DATEDIFF(MINUTE, s.login_time, GETDATE()) AS TotalElapsedMinutes,
+    t.text AS CurrentQuery,
+    (SELECT text FROM sys.dm_exec_sql_text(r.sql_handle)) AS CompleteStatement
+FROM sys.dm_exec_requests r
+JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+WHERE r.database_id = DB_ID('helloworld')
+    AND r.total_elapsed_time > 60000  -- Long-running queries (greater than 1 minute)
+ORDER BY r.total_elapsed_time DESC;
