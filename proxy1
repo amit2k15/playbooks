@@ -1,0 +1,49 @@
+from pyzabbix import ZabbixAPI
+from openpyxl import Workbook
+
+# Zabbix API credentials and server URL
+zabbix_url = 'https://your_zabbix_server_url/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
+
+# Proxy name for which you want to get information
+proxy_name = 'your_proxy_name'
+
+# Initialize Zabbix API connection
+zapi = ZabbixAPI(url=zabbix_url, user=zabbix_user, password=zabbix_password)
+
+# Login to Zabbix API
+zapi.login(zabbix_user, zabbix_password)
+
+try:
+    # Get proxy ID for the specified proxy name
+    proxy_info = zapi.proxy.get(filter={'host': proxy_name})
+    if proxy_info:
+        proxy_id = proxy_info[0]['proxyid']
+        
+        # Get hosts associated with the proxy
+        hosts = zapi.host.get(proxyids=[proxy_id], output=['hostid', 'host', 'status'], selectGroups=['groupid', 'name'])
+        
+        # Create an Excel workbook and sheet
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['Host', 'Group', 'Status', 'Proxy'])
+        
+        for host in hosts:
+            host_name = host['host']
+            host_status = host['status']
+            
+            # Get host group information for the host
+            groups = host['groups']
+            for group in groups:
+                group_name = group['name']
+                ws.append([host_name, group_name, host_status, proxy_name])
+        
+        # Save the workbook
+        wb.save('zabbix_info.xlsx')
+        print("Excel file 'zabbix_info.xlsx' created successfully!")
+    else:
+        print(f"No proxy found with the name '{proxy_name}'")
+finally:
+    # Logout from Zabbix API
+    zapi.logout()
