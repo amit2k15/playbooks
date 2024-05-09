@@ -1,15 +1,1 @@
-Dear Arun and Team,
-Thank you for the productive meeting where we discussed several automation requirements. Below is a summary of the discussed items along with their automation requirements:
-
-SQL Account Unlock After 3 Failed Attempts
-Automation Requirement: Zabbix/System needs to check and unlock accounts three times. If a fourth consecutive failed attempt occurs, the account should not unlock but instead trigger a notification to the team.
-Scope: Local SQL users.
-Integrity Job Check
-Automation Requirement: Zabbix/System needs to check the status of the Integrity job on Monday mornings. If the job is still running, it should be stopped.
-Scope: Identify the job through Job ID and then stop the job.
-Kill Select Blockages
-Automation Requirement: Zabbix/System needs to identify and resolve blocking issues related to SELECT queries. This includes retrieving information about the blocking and blocked sessions along with relevant details, then killing the blocked session by its session ID.
-Scope: Identify and handle SELECT query blocking issues.
-Please review the outlined requirements, and if anything was missed or requires further clarification, please let us know. We will ensure to check the feasibility and address any doubts or setup requirements for the Proof of Concept (POC) on the lower environment.
-
-Looking forward to your feedback and collaboration on these automation initiatives.
+We'll review these points and confirm the feasibility. If any additional details are required or if we need a test setup for a proof of concept (POC) in the lower environment, we'll reach out to you.
