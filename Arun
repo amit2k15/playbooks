@@ -1,36 +1,41 @@
-from pyzabbix import ZabbixAPI, ZabbixAPIException
-import csv
+from pyzabbix import ZabbixAPI
 
 # Zabbix server credentials
-zabbix_url = 'https://your_zabbix_server_url/zabbix'
-zabbix_user = 'your_username'
-zabbix_password = 'your_password'
+zabbix_server = 'https://your_zabbix_server'
+username = 'your_username'
+password = 'your_password'
 
 # Connect to Zabbix API
-zapi = ZabbixAPI(zabbix_url)
-zapi.login(zabbix_user, zabbix_password)
+zapi = ZabbixAPI(zabbix_server)
+zapi.login(username, password)
 
-# Define the host group and fetch hosts
-hostgroup_name = 'Your_Host_Group_Name'
-hosts = zapi.host.get(group=hostgroup_name, output=['hostid', 'host', 'status'])
+# Specify the host group name
+hostgroup_name = 'Your Host Group Name'
 
-# Define the output CSV file name
-csv_file_name = 'zabbix_host_status.csv'
+# Get host group ID
+hostgroups = zapi.hostgroup.get(filter={'name': hostgroup_name})
+if not hostgroups:
+    print(f"Host group '{hostgroup_name}' not found.")
+    zapi.logout()
+    exit()
 
-# Convert status values to "Enabled" or "Disabled"
-def convert_status(status):
-    return 'Enabled' if status == '0' else 'Disabled'
+hostgroup_id = hostgroups[0]['groupid']
 
-# Write data to CSV file
-with open(csv_file_name, mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(['Host Name', 'Status'])
+# Get hosts in the host group
+hosts = zapi.host.get(groupids=hostgroup_id, output=['hostid', 'host', 'status'])
+
+# Convert status to Enabled/Disabled
+for host in hosts:
+    host['status'] = 'Enabled' if host['status'] == '0' else 'Disabled'
+
+# Generate CSV file
+csv_filename = f"{hostgroup_name}_report.csv"
+with open(csv_filename, 'w') as csv_file:
+    csv_file.write("Host Name,Status\n")
     for host in hosts:
-        host_name = host['host']
-        host_status = convert_status(host['status'])
-        writer.writerow([host_name, host_status])
+        csv_file.write(f"{host['host']},{host['status']}\n")
 
-print(f"Report generated successfully: {csv_file_name}")
+print(f"CSV report generated: {csv_filename}")
 
 # Logout from Zabbix API
 zapi.logout()
