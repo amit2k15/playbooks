@@ -1,32 +1,36 @@
-Dear Sunil,
+from pyzabbix import ZabbixAPI, ZabbixAPIException
+import csv
 
-Thank you for the insightful discussion we had regarding certificate monitoring capabilities and the alerting policy on certificate expiry for the OWCA Application. I'm summarizing the key points we discussed and the prerequisites for effective certificate monitoring:
+# Zabbix server credentials
+zabbix_url = 'https://your_zabbix_server_url/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
-Discussed Points:
+# Connect to Zabbix API
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
 
-Certificate Monitoring Capabilities: We discussed the need for robust monitoring capabilities to track certificate status, including expiry alerts and proactive management.
-Alerting Policy on Certificate Expiry: It's crucial to establish an alerting policy that triggers notifications well in advance of certificate expiry, ensuring timely renewal and avoiding service disruptions.
-Prerequisites for Certificate Monitoring:
+# Define the host group and fetch hosts
+hostgroup_name = 'Your_Host_Group_Name'
+hosts = zapi.host.get(group=hostgroup_name, output=['hostid', 'host', 'status'])
 
-Application Type:
-On-premises, Cloud, or Hybrid deployment?
-Source of Certificate Generation and Maintenance:
-Are certificates managed through Venafi or any other third-party tools?
-On-premises Details (if applicable):
-Server details (hostname/IP)
-OS Type
-Certificate location
-Certificate type/format
-Zabbix agent installation status
-Cloud-based Details (if applicable):
-Public cloud platform (AWS/Azure/GCP)
-Certificate path (e.g., Azure FileShare)
-Access credentials (SAS token or other credentials)
-Web Application Integration (if applicable):
-Complete URL details
-Communication from Zabbix environment to the URL
-Please provide the above details to proceed with setting up effective certificate monitoring for the OWCA Application. Let's ensure we have all necessary information to implement a robust monitoring solution.
+# Define the output CSV file name
+csv_file_name = 'zabbix_host_status.csv'
 
-Looking forward to your response.
+# Convert status values to "Enabled" or "Disabled"
+def convert_status(status):
+    return 'Enabled' if status == '0' else 'Disabled'
 
-Best regards,
+# Write data to CSV file
+with open(csv_file_name, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Host Name', 'Status'])
+    for host in hosts:
+        host_name = host['host']
+        host_status = convert_status(host['status'])
+        writer.writerow([host_name, host_status])
+
+print(f"Report generated successfully: {csv_file_name}")
+
+# Logout from Zabbix API
+zapi.logout()
