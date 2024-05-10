@@ -19,9 +19,13 @@ item_name = 'TwincatMessenger service'
 
 # Function to get service status for a host
 def get_service_status(host_id):
-    item_id = zabbix.item.get(hostids=host_id, search={'key_': item_name})[0]['itemid']
-    item_value = zabbix.history.get(itemids=item_id, output='extend', limit=1, sortfield='clock', sortorder='DESC')[0]['value']
-    return item_value
+    items = zabbix.item.get(hostids=host_id, search={'key_': item_name})
+    if items:
+        item_id = items[0]['itemid']
+        item_value = zabbix.history.get(itemids=item_id, output='extend', limit=1, sortfield='clock', sortorder='DESC')[0]['value']
+        return item_value
+    else:
+        return None
 
 # Check service status for each host in each host group
 status_list = []
@@ -29,7 +33,8 @@ for group in host_groups:
     hosts = zabbix.host.get(groupids=zabbix.hostgroup.get(filter={'name': group})[0]['groupid'])
     for host in hosts:
         service_status = get_service_status(host['hostid'])
-        status_list.append(service_status)
+        if service_status is not None:
+            status_list.append(service_status)
 
 # Determine overall status
 overall_status = "UP" if all(status == "1" for status in status_list) else "Down"
