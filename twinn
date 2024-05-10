@@ -1,0 +1,76 @@
+from pyzabbix import ZabbixAPI
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime
+
+# Zabbix API configuration
+zabbix_server = 'https://your_zabbix_server'
+zabbix_user = 'your_zabbix_username'
+zabbix_password = 'your_zabbix_password'
+
+# Zabbix API authentication
+zapi = ZabbixAPI(zabbix_server)
+zapi.login(zabbix_user, zabbix_password)
+
+# Host groups and item name
+host_groups = ['Host_Group_1', 'Host_Group_2', 'Host_Group_3']
+item_name = 'TwincatMessenger service'
+
+# Function to get service status for a host
+def get_service_status(host_id):
+    items = zapi.item.get(hostids=host_id, search={'key_': item_name}, output=['lastvalue'])
+    if items:
+        return items[0]['lastvalue']
+    return None
+
+# Check service status for each host group
+status_list = []
+for host_group in host_groups:
+    hosts = zapi.host.get(group=host_group, output=['hostid', 'host'])
+    for host in hosts:
+        service_status = get_service_status(host['hostid'])
+        if service_status:
+            status_list.append(service_status)
+
+# Determine overall status
+overall_status = "UP" if all(status == "1" for status in status_list) else "Down"
+
+# Email configuration
+email_subject = f"PCS Morning Checkout Report {datetime.now().strftime('%Y-%m-%d')} - {'GREEN' if overall_status == 'UP' else 'RED'}"
+email_body = f"""Hi Team,
+
+Please find the TwincatMessenger status of all PCS sites as follows for {datetime.now().strftime('%Y-%m-%d')}
+
+Application_Name | Service_Name | Status
+----------------------------------------
+"""
+for host_group in host_groups:
+    hosts = zapi.host.get(group=host_group, output=['host'])
+    for host in hosts:
+        service_status = get_service_status(host['hostid'])
+        if service_status:
+            email_body += f"{host['host']} | TwincatMessenger | {'UP' if service_status == '1' else 'Down'}\n"
+
+email_body += "\nThanks and Regards\nTeam Name"
+
+# Send email
+sender_email = "your_email@example.com"
+receiver_email = "recipient_email@example.com"
+smtp_server = "smtp.example.com"
+smtp_port = 587
+smtp_username = "your_smtp_username"
+smtp_password = "your_smtp_password"
+
+msg = MIMEMultipart()
+msg['From'] = sender_email
+msg['To'] = receiver_email
+msg['Subject'] = email_subject
+msg.attach(MIMEText(email_body, 'plain'))
+
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    server.starttls()
+    server.login(smtp_username, smtp_password)
+    server.send_message(msg)
+
+print("Email sent successfully!")
