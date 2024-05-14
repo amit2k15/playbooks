@@ -1,3 +1,6 @@
+Need "grant all privileges" for 'zabprd_app' user for 'zabprd' database to ensure optimal functionality of the Orx-Zabbix application.This comprehensive access enables seamless operation and robust performance of the application.
+
+
 Overview:
 
 Database Operations: Zabbix requires various database operations such as creating, reading, updating, and deleting data (CRUD operations). Granting all privileges ensures that the Zabbix application user can perform these operations seamlessly.
