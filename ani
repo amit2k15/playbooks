@@ -1,0 +1,32 @@
+Here is the email template:
+
+---
+
+Subject: MOM: Follow-up on Meeting Discussions
+
+Hi Anirudh,
+
+I hope this email finds you well.
+
+Following our recent meeting, here are the key points discussed:
+
+1. **Cluster Monitoring for Orx-Zabbix Servers:**
+   - As discussed with Dinesh, they don't need any cluster monitoring for the Orx-Zabbix servers. Hence, we can remove it from the ENT Zabbix config file.
+
+2. **Fetching Line of Business:**
+   - There is a way to fetch the line of business for a server by using the x parameter, similar to how you are fetching the appname into your Chef cookbook.
+
+3. **Chef Team Call:**
+   - We need to schedule a call with the Chef team to discuss the feasibility of isolating servers to prevent them from starting or changing state back to the original config every 30 minutes.
+
+4. **Chef Team Contact Info:**
+   - Please provide the contact information for the Chef team so we can arrange the meeting to discuss the above points.
+
+Looking forward to your response.
+
+Best regards,  
+Ben
+
+---
+
+Feel free to modify as needed.
