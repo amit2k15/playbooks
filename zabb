@@ -1,9 +1,15 @@
-Hi Sunil,
+Dear Mona,
 
-I hope this message finds you well.
+I'm writing to follow up on the recent IFMS web URL alerts you might have seen on Zabbix. These alerts were triggered due to a scheduled password maintenance activity we conducted.
 
-Regarding the certificate monitoring setup, as all our certificates are managed by Venafi, we would need the Venafi Secure Group information to proceed with raising a read-only request for monitoring purposes.
+As part of our yearly security protocols, we perform routine password updates for various accounts. To ensure a smooth transition, we created a maintenance window during which we generated a new password for the X account used to access IFMS web URLs.
 
-Could you please provide us with the details of the Venafi Secure Group that we should use for this purpose? Once we have this information, we can proceed further with setting up the certificate monitoring as per our discussion.
+This new password was subsequently updated on Zabbix. However, there might have been a temporary delay in synchronization between the X account and Zabbix. This delay unfortunately caused the alerts to be triggered.
 
-Looking forward to your prompt response.
+We understand this might have caused some concern, and we apologize for any inconvenience it may have caused. Please be assured that the situation has been resolved. The new password is now successfully synced with Zabbix, and the alerts should no longer be triggered.
+
+If you have any further questions or require any additional information, please don't hesitate to reply to this email.
+
+Thank you for your understanding.
+
+Sincerely,
