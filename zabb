@@ -1,15 +1,14 @@
-Dear Mona,
+Hi Mohit,
 
-I'm writing to follow up on the recent IFMS web URL alerts you might have seen on Zabbix. These alerts were triggered due to a scheduled password maintenance activity we conducted.
+Thank you for your interest in Zabbix and Grafana. It was great meeting with you today. Please find below the minutes of the meeting (MOM) for our discussion. Let us know if you need any additional information.
 
-As part of our yearly security protocols, we perform routine password updates for various accounts. To ensure a smooth transition, we created a maintenance window during which we generated a new password for the X account used to access IFMS web URLs.
+Discussed Items:
 
-This new password was subsequently updated on Zabbix. However, there might have been a temporary delay in synchronization between the X account and Zabbix. This delay unfortunately caused the alerts to be triggered.
+Quick introduction about your team and requirement
+Demo on Zabbix and its features
+Zabbix tool walkthrough
+Grafana dashboard walkthrough on Zabbix integrated data
+Cost associated with Zabbix and Grafana
+Feel free to reach out if you have any further questions or need more details on any of the points discussed.
 
-We understand this might have caused some concern, and we apologize for any inconvenience it may have caused. Please be assured that the situation has been resolved. The new password is now successfully synced with Zabbix, and the alerts should no longer be triggered.
-
-If you have any further questions or require any additional information, please don't hesitate to reply to this email.
-
-Thank you for your understanding.
-
-Sincerely,
+Best regards,
