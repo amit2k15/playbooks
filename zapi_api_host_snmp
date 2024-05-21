@@ -1,0 +1,52 @@
+import pandas as pd
+from pyzabbix import ZabbixAPI
+
+# Zabbix server URL and credentials
+zabbix_url = 'http://your_zabbix_server/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
+
+# Connect to Zabbix API
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
+
+# Retrieve all hosts
+hosts = zapi.host.get(output=['hostid', 'host', 'status'], selectInterfaces=['interfaceid', 'type'])
+host_groups = zapi.hostgroup.get(output=['name'], selectHosts=['hostid'])
+
+# Prepare the data
+data = []
+
+# Loop through hosts and filter SNMP based monitors
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+    host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
+    
+    # Check if the host has an SNMP interface (type 2)
+    has_snmp = any(interface['type'] == '2' for interface in host['interfaces'])
+    
+    if has_snmp:
+        # Find the host group(s) for this host
+        host_group_names = []
+        for group in host_groups:
+            if any(h['hostid'] == host_id for h in group['hosts']):
+                host_group_names.append(group['name'])
+        
+        data.append({
+            'Host': host_name,
+            'Host Group': ', '.join(host_group_names),
+            'Status': host_status
+        })
+
+# Create a DataFrame
+df = pd.DataFrame(data)
+
+# Write to an Excel file
+output_file = 'zabbix_hosts_snmp.xlsx'
+df.to_excel(output_file, index=False)
+
+print(f"Data has been written to {output_file}")
+
+# Logout from Zabbix API
+zapi.user.logout()
