@@ -1,49 +1,54 @@
-import openpyxl
-from pyzabbix import ZabbixAPI
+from pyzabbix.api import ZabbixAPI
+from openpyxl import Workbook
 
-# Zabbix API connection details
-ZABBIX_SERVER = 'https://your_zabbix_server_url'
-USERNAME = 'your_username'
-PASSWORD = 'your_password'
+# Zabbix API details
+url = "http://your_zabbix_server/api/jsonrpc.php"  # Replace with your Zabbix URL
+username = "your_username"
+password = "your_password"
 
-# Initialize Zabbix API connection
-zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(USERNAME, PASSWORD)
+# Filter parameters
+hostgroup_name_filter = "OWCA"
+snmp_status = "1"  # Red state in Zabbix
 
-# Retrieve host groups containing 'OWCA'
-host_groups = zapi.hostgroup.get(filter={"name": "OWCA"}, output=["groupid", "name"])
+# Connect to Zabbix API
+zapi = ZabbixAPI(url=url, user=username, password=password)
 
-# Retrieve hosts with SNMP errors
-hosts_with_errors = []
-for group in host_groups:
-    hosts = zapi.host.get(groupids=group['groupid'], output=["hostid", "host", "name"], selectInterfaces=["type", "snmp_error"])
-    for host in hosts:
-        for interface in host.get('interfaces', []):
-            if interface['type'] == '2' and interface.get('snmp_error'):  # type 2 is SNMP
-                hosts_with_errors.append({
-                    'Host': host['host'],
-                    'Host Name': host['name'],
-                    'Host Group': group['name'],
-                    'SNMP Error': interface['snmp_error']
-                })
+# Get hostgroup ID by name
+hostgroups = zapi.hostgroup.get(filter={"name": hostgroup_name_filter})
 
-# Create an Excel workbook and sheet
-wb = openpyxl.Workbook()
+# Check if any hostgroup found
+if not hostgroups:
+    print(f"No hostgroup found with name '{hostgroup_name_filter}'")
+    exit()
+
+hostgroup_id = hostgroups[0]["groupid"]
+
+# Get hosts with SNMP in Red state
+filters = {
+    "groupids": hostgroup_id,
+    "filter": {"status": snmp_status},
+    "output": ["hostid", "name", "hostgroups"],
+}
+
+hosts = zapi.host.get(**filters)
+
+# Create Excel workbook
+wb = Workbook()
 ws = wb.active
-ws.title = "SNMP Errors"
+ws.title = f"OWCA Hosts with SNMP in Red State"
 
-# Write headers
-headers = ['Host', 'Host Name', 'Host Group', 'SNMP Error']
-ws.append(headers)
+# Set column headers
+ws.append(["Hostname", "Host Group", "Status"])
 
-# Write host data
-for host in hosts_with_errors:
-    ws.append([host['Host'], host['Host Name'], host['Host Group'], host['SNMP Error']])
+# Populate data in Excel sheet
+for host in hosts:
+    host_name = host["name"]
+    host_groups = ", ".join([group["name"] for group in host["hostgroups"]])
+    status = "Red"  # Assuming status is derived from snmp_status
 
-# Save the workbook
-wb.save('hosts_with_snmp_errors.xlsx')
+    ws.append([host_name, host_groups, status])
 
-print(f"Data has been saved to 'hosts_with_snmp_errors.xlsx'")
+# Save the Excel sheet
+wb.save("owca_snmp_red_hosts.xlsx")
 
-# Logout from Zabbix API
-zapi.logout()
+print(f"Data saved to owca_snmp_red_hosts.xlsx")
