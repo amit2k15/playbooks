@@ -1,0 +1,51 @@
+from pyzabbix import ZabbixAPI
+import openpyxl
+
+# Zabbix server credentials
+ZABBIX_SERVER = 'http://your_zabbix_server'
+USERNAME = 'your_username'
+PASSWORD = 'your_password'
+
+# Connect to Zabbix API
+zapi = ZabbixAPI(ZABBIX_SERVER)
+zapi.login(USERNAME, PASSWORD)
+
+# Fetch hosts with SNMP errors
+hosts_with_snmp_errors = zapi.trigger.get(
+    filter={"value": 1},  # Problem status
+    search={"description": "SNMP"},  # Search for SNMP errors
+    output=["hostid", "description", "status"],
+    selectHosts=["hostid", "name"]
+)
+
+# Prepare data for Excel
+data = []
+for trigger in hosts_with_snmp_errors:
+    host_id = trigger['hosts'][0]['hostid']
+    host_name = trigger['hosts'][0]['name']
+    status = trigger['status']
+    host_groups = zapi.host.get(
+        hostids=host_id,
+        selectGroups=["name"]
+    )
+    group_names = ', '.join([group['name'] for group in host_groups[0]['groups']])
+    data.append([host_name, group_names, status])
+
+# Create Excel workbook and sheet
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.title = "SNMP Errors"
+
+# Write headers
+headers = ["Host", "Host Group", "Status"]
+ws.append(headers)
+
+# Write data
+for row in data:
+    ws.append(row)
+
+# Save the workbook
+wb.save("zabbix_snmp_errors.xlsx")
+
+# Logout from Zabbix API
+zapi.user.logout()
