@@ -2,53 +2,60 @@ from pyzabbix.api import ZabbixAPI
 from openpyxl import Workbook
 
 # Zabbix API details
-url = "http://your_zabbix_server/api/jsonrpc.php"  # Replace with your Zabbix URL
-username = "your_username"
-password = "your_password"
+url = "http://<your_zabbix_server_url>/api/jsonrpc.php"
+username = "<your_username>"
+password = "<your_password>"
 
-# Filter parameters
-hostgroup_name_filter = "OWCA"
-snmp_status = "1"  # Red state in Zabbix
+# Filter for OWCA host groups and Red state
+hostgroup_filter = {"name": {"like": "OWCA"}}
+filter_ = {"status": "1"}  # 1 represents Red state
 
 # Connect to Zabbix API
 zapi = ZabbixAPI(url=url, user=username, password=password)
 
-# Get hostgroup ID by name
-hostgroups = zapi.hostgroup.get(filter={"name": hostgroup_name_filter})
+# Get host groups containing OWCA
+hostgroups = zapi.hostgroup.get(filter=hostgroup_filter)
 
-# Check if any hostgroup found
-if not hostgroups:
-    print(f"No hostgroup found with name '{hostgroup_name_filter}'")
-    exit()
+# Initialize empty list for results
+results = []
 
-hostgroup_id = hostgroups[0]["groupid"]
+# Loop through each host group
+for group in hostgroups:
+    group_id = group["groupid"]
 
-# Get hosts with SNMP in Red state
-filters = {
-    "groupids": hostgroup_id,
-    "filter": {"status": snmp_status},
-    "output": ["hostid", "name", "hostgroups"],
-}
+    # Get hosts in the current group
+    hosts = zapi.host.get(groupids=[group_id], output=["hostid", "name"])
 
-hosts = zapi.host.get(**filters)
+    # Loop through each host
+    for host in hosts:
+        host_id = host["hostid"]
 
-# Create Excel workbook
+        # Get host details with SNMP status
+        host_details = zapi.host.get(hostids=[host_id], select_interfaces=["snmp_agent_status"])
+
+        # Check if SNMP status is Red (problem)
+        if host_details[0]["interfaces"][0]["snmp_agent_status"] == 3:  # 3 represents problem
+            results.append({"host": host["name"], "hostgroup": group["name"], "status": "Red"})
+
+# Create a new Excel workbook
 wb = Workbook()
 ws = wb.active
-ws.title = f"OWCA Hosts with SNMP in Red State"
+ws.title = "Zabbix SNMP Status (OWCA Host Groups)"
 
-# Set column headers
-ws.append(["Hostname", "Host Group", "Status"])
+# Set headers
+ws.cell(row=1, column=1).value = "Host"
+ws.cell(row=1, column=2).value = "Host Group"
+ws.cell(row=1, column=3).value = "Status"
 
-# Populate data in Excel sheet
-for host in hosts:
-    host_name = host["name"]
-    host_groups = ", ".join([group["name"] for group in host["hostgroups"]])
-    status = "Red"  # Assuming status is derived from snmp_status
-
-    ws.append([host_name, host_groups, status])
+# Add results to the sheet
+row = 2
+for item in results:
+    ws.cell(row=row, column=1).value = item["host"]
+    ws.cell(row=row, column=2).value = item["hostgroup"]
+    ws.cell(row=row, column=3).value = item["status"]
+    row += 1
 
 # Save the Excel sheet
-wb.save("owca_snmp_red_hosts.xlsx")
+wb.save("zabbix_snmp_status_owca.xlsx")
 
-print(f"Data saved to owca_snmp_red_hosts.xlsx")
+print("Successfully retrieved SNMP status for OWCA host groups and saved to 'zabbix_snmp_status_owca.xlsx'")
