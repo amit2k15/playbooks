@@ -93,3 +93,18 @@ UserParameter=script_execution[*],powershell.exe -File "C:\Program Files\Zabbix 
 Hi Michael,I hope this email finds you well. I wanted to provide you with an update on the recent working session we conducted on the Stage DR testing for the CCM application.Infrastructure Monitoring and Services Monitoring in Zabbix:Successfully enabled infrastructure monitoring and services monitoring in Zabbix.Alert Trigger Configuration:Configured alert triggers to activate if all nodes (Inspire Scaler 30600) are down on any DC.Self-Healing Process:Implemented a self-healing mechanism in Zabbix to initiate a job and start the Inspire 30600 service on the specified server in another DC upon trigger.Testing Summary:Conducted successful testing by manually shutting down all services/nodes in ELR DC.The configured alert triggered promptly, and the service was automatically started in the alternative DC.As previously discussed, we have onboarded production servers in Zabbix and enabled service monitoring. We are now seeking your approval to proceed with a similar scenario in the Production environment by manually shutting down nodes.Please let us know your availability for this testing in Production, and if there are any additional steps or considerations we should take. Also, inform us if another round of testing is required before moving forward.Looking forward to your guidance on this matter.Best regards
 
 perf_counter[\PhysicalDisk(*)\Avg. Disk sec/Read]
+
+
+Hi [SLO's Name],
+
+I hope this message finds you well.
+
+Initially, we started SNMP-based monitoring for OWCA servers in Zabbix. Over time, we have transitioned to agent-based monitoring in Zabbix. However, we have identified that the attached list of servers is still being monitored via SNMP.
+
+We request your availability to discuss and transition the monitoring of these servers from SNMP to agent-based.
+
+Please let us know your convenient time for this discussion.
+
+Thank you for your cooperation.
+
+Best regards,
