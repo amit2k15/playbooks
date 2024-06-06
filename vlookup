@@ -1,0 +1,22 @@
+import pandas as pd
+
+# Load the Excel file
+file_path = 'path_to_your_excel_file.xlsx'
+xls = pd.ExcelFile(file_path)
+
+# Read the sheets
+df_a = pd.read_excel(xls, 'A')
+df_c = pd.read_excel(xls, 'C')
+
+# Merge the data from sheet C into sheet A based on the service name
+df_a = df_a.merge(df_c[['service', 'priority']], on='service', how='left')
+
+# Save the updated data to a new Excel file
+output_path = 'updated_excel_file.xlsx'
+with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
+    df_a.to_excel(writer, sheet_name='A', index=False)
+    df_b = pd.read_excel(xls, 'B')
+    df_b.to_excel(writer, sheet_name='B', index=False)
+    df_c.to_excel(writer, sheet_name='C', index=False)
+
+print(f"Updated Excel file saved as {output_path}")
