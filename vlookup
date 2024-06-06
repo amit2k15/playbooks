@@ -20,3 +20,8 @@ with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
     df_c.to_excel(writer, sheet_name='C', index=False)
 
 print(f"Updated Excel file saved as {output_path}")
+
+command with system.run:
+
+system.run[powershell.exe -c "Get-ScheduledTask -TaskName '<task_name>' | Select-Object State -ExpandProperty State"]
+Explanation:
