@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Check the system uptime in minutes
+uptime_minutes=$(awk '{print int($1/60)}' /proc/uptime)
+
+# Check the httpd service status
+httpd_status=$(systemctl is-active httpd)
+
+# Check if the /run/httpd directory exists
+if [ ! -d /run/httpd ]; then
+    dir_exists=false
+else
+    dir_exists=true
+fi
+
+# Execute commands if uptime is less than 10 minutes and httpd is down
+if [ "$uptime_minutes" -lt 10 ] && [ "$httpd_status" != "active" ]; then
+    if [ "$dir_exists" = false ]; then
+        sudo mkdir /run/httpd
+        sudo chown root.apache /run/httpd
+        sudo chmod 0710 /run/httpd
+    fi
+    sudo systemctl start httpd php-fpm
+fi
