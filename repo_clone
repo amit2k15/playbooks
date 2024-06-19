@@ -1,9 +1,12 @@
+import os
 import subprocess
 
-# Define the GitHub URL and credentials
+# Load GitHub credentials from environment variables
+username = os.getenv("GITHUB_USERNAME")
+password = os.getenv("GITHUB_PASSWORD")
+
+# Define the GitHub URL
 github_url = "https://github.com/amit2/hellow.git"
-username = "kumaramit@amit.com"
-password = "I($~JHK(*"
 
 # Construct the authenticated URL
 authenticated_url = github_url.replace("https://", f"https://{username}:{password}@")
