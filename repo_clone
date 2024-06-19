@@ -1,0 +1,19 @@
+import subprocess
+
+# Define the GitHub URL and credentials
+github_url = "https://github.com/amit2/hellow.git"
+username = "kumaramit@amit.com"
+password = "I($~JHK(*"
+
+# Construct the authenticated URL
+authenticated_url = github_url.replace("https://", f"https://{username}:{password}@")
+
+# Define the directory where you want to clone the repository
+destination_directory = "/opt/hellow"
+
+# Run the git clone command
+try:
+    subprocess.run(["git", "clone", authenticated_url, destination_directory], check=True)
+    print(f"Repository successfully cloned to {destination_directory}")
+except subprocess.CalledProcessError as e:
+    print(f"An error occurred while cloning the repository: {e}")
