@@ -1,1 +1,15 @@
+Hi Kedar and Dan,
 
+I hope this message finds you well.
+
+I wanted to confirm that Zabbix does not trigger a new alert until the previous one has been cleared. After cross-verifying the alerts in Zabbix, I identified that the polling interval for the query was set to 30 minutes, but the alert condition was configured to trigger an alert if any response was received within 10 minutes. This discrepancy caused the alert to be triggered every 10 minutes.
+
+To address this issue, I have modified the alert condition to match the polling interval of 30 minutes. This should ensure that alerts are triggered appropriately according to the configured interval.
+
+Please cross-check this configuration and let us know when we can proceed with re-enabling ServiceNow.
+
+Thank you for your attention to this matter. If you have any further questions or need additional information, please feel free to reach out.
+
+Best regards,
+
+Amit Kumar Nayak
