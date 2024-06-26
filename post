@@ -1,0 +1,15 @@
+SELECT 
+    DATE(close_time) AS close_date, 
+    COUNT(in_id) AS incident_count
+FROM 
+    your_table_name
+WHERE 
+    uh_closed_by_id = CASE 
+                          WHEN '$Name' = 'Amit Nayak' THEN '001516083'
+                          WHEN '$Name' = 'Anupama' THEN '001016823'
+                          ELSE null
+                      END
+GROUP BY 
+    DATE(close_time)
+ORDER BY 
+    close_date;
