@@ -1,15 +1,65 @@
-Hi Kedar and Dan,
+import pandas as pd
+from pyzabbix import ZabbixAPI
 
-I hope this message finds you well.
+# Define your Zabbix server details
+zabbix_server = 'http://your_zabbix_server'
+username = 'your_username'
+password = 'your_password'
 
-I wanted to confirm that Zabbix does not trigger a new alert until the previous one has been cleared. After cross-verifying the alerts in Zabbix, I identified that the polling interval for the query was set to 30 minutes, but the alert condition was configured to trigger an alert if any response was received within 10 minutes. This discrepancy caused the alert to be triggered every 10 minutes.
+# Connect to Zabbix API
+zapi = ZabbixAPI(zabbix_server)
+zapi.login(username, password)
 
-To address this issue, I have modified the alert condition to match the polling interval of 30 minutes. This should ensure that alerts are triggered appropriately according to the configured interval.
+# Function to get data for a specific host group
+def get_host_group_data(host_group_name):
+    host_group_id = zapi.hostgroup.get(filter={'name': host_group_name})[0]['groupid']
+    
+    hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name', 'status'])
+    data = []
+    
+    for host in hosts:
+        hostid = host['hostid']
+        host_name = host['name']
+        host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
+        
+        items = zapi.item.get(hostids=hostid, output=['name', 'key_', 'status', 'delay'])
+        for item in items:
+            item_name = item['name']
+            item_key = item['key_']
+            item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
+            item_interval = item['delay']
+            
+            parameter = ''
+            if 'url' in item_key.lower():
+                parameter = item_key
+            elif 'db' in item_key.lower() or 'database' in item_key.lower():
+                parameter = item_key
+            
+            triggers = zapi.trigger.get(hostids=hostid, output=['description', 'priority', 'status'])
+            for trigger in triggers:
+                trigger_severity = trigger['priority']
+                trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
+                actions = zapi.action.get(triggerids=trigger['triggerid'], output=['name', 'eventsource', 'status'])
+                
+                for action in actions:
+                    action_type = action['eventsource']
+                    media = zapi.mediatype.get(mediaids=action['name'], output=['description'])[0]['description']
+                    
+                    data.append([
+                        host_name, host_status, item_name, parameter, item_interval, item_status, 
+                        trigger_severity, trigger_status, action_type, media
+                    ])
+                    
+    return data
 
-Please cross-check this configuration and let us know when we can proceed with re-enabling ServiceNow.
+# Retrieve data for a specific host group
+host_group_name = 'Your Host Group Name'
+data = get_host_group_data(host_group_name)
 
-Thank you for your attention to this matter. If you have any further questions or need additional information, please feel free to reach out.
+# Create a DataFrame and save to Excel
+columns = ['Host Name', 'Host Status', 'Item Name', 'Parameter', 'Item Interval', 'Item Status', 
+           'Trigger Severity', 'Trigger Status', 'Action Type', 'Media']
+df = pd.DataFrame(data, columns=columns)
+df.to_excel('zabbix_data.xlsx', index=False)
 
-Best regards,
-
-Amit Kumar Nayak
+print('Data has been successfully retrieved and saved to zabbix_data.xlsx')
