@@ -1,69 +1,67 @@
 from pyzabbix import ZabbixAPI
 import pandas as pd
 
-# Zabbix server credentials
-zabbix_server = 'https://your_zabbix_server_url'
-username = 'your_username'
-password = 'your_password'
-
-# Host group name to filter
+# Replace with your Zabbix server URL, username, and password
+zabbix_server = 'http://your_zabbix_server_url'
+zabbix_username = 'your_zabbix_username'
+zabbix_password = 'your_zabbix_password'
 host_group_name = 'Your Host Group Name'
 
 # Connect to Zabbix API
 zapi = ZabbixAPI(zabbix_server)
-zapi.login(username, password)
+zapi.login(zabbix_username, zabbix_password)
 
-# Get the host group ID
-host_groups = zapi.hostgroup.get(filter={'name': host_group_name})
+# Get host group ID by name
+host_groups = zapi.hostgroup.get(filter={"name": host_group_name})
 if not host_groups:
     print(f"Host group '{host_group_name}' not found.")
     exit()
 host_group_id = host_groups[0]['groupid']
 
-# Get hosts in the host group
-hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'host', 'status'])
-
-# Initialize list to store data
-data = []
-
-# Fetch items, triggers, and media for each host
+# Get hosts in the specified host group
+hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name', 'status'])
+host_data = []
 for host in hosts:
     host_id = host['hostid']
-    host_name = host['host']
     host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
     
+    # Get items for each host
     items = zapi.item.get(hostids=host_id, output=['name', 'status', 'delay'])
-    triggers = zapi.trigger.get(hostids=host_id, output=['priority', 'status', 'description'])
-    media = zapi.usermedia.get(userid=host_id, output=['mediatypeid', 'sendto'])
-
     for item in items:
         item_name = item['name']
         item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
         item_interval = item['delay']
         
+        # Get triggers for each item
+        triggers = zapi.trigger.get(hostids=host_id, itemids=item['itemid'], output=['priority', 'status'])
         for trigger in triggers:
             trigger_severity = trigger['priority']
             trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
             
-            for medium in media:
-                media_type = medium['mediatypeid']
-                media_sendto = medium['sendto']
-                
-                data.append([
-                    host_name,
-                    host_status,
-                    item_name,
-                    item_interval,
-                    item_status,
-                    trigger_severity,
-                    trigger_status,
-                    media_type,
-                    media_sendto
-                ])
+            # Get media for each host (if any)
+            medias = zapi.mediatype.get(hostids=host_id, output=['description'])
+            media_descriptions = [media['description'] for media in medias]
+            media_list = ', '.join(media_descriptions) if media_descriptions else 'None'
+            
+            # Append data to list
+            host_data.append({
+                'Host Name': host['name'],
+                'Host Status': host_status,
+                'Item Name': item_name,
+                'Item Interval': item_interval,
+                'Item Status': item_status,
+                'Trigger Severity': trigger_severity,
+                'Trigger Status': trigger_status,
+                'Media': media_list
+            })
 
-# Create a DataFrame and save it to an Excel file
-columns = ['Host Name', 'Host Status', 'Item Name', 'Item Interval', 'Item Status', 'Trigger Severity', 'Trigger Status', 'Media Type', 'Media Sendto']
-df = pd.DataFrame(data, columns=columns)
-df.to_excel('zabbix_data.xlsx', index=False)
+# Create DataFrame
+df = pd.DataFrame(host_data)
 
-print("Data has been successfully saved to 'zabbix_data.xlsx'.")
+# Save to Excel
+excel_file = 'zabbix_host_data.xlsx'
+df.to_excel(excel_file, index=False)
+print(f"Data saved to {excel_file}")
+
+# Logout from Zabbix API
+zapi.logout()
