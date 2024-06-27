@@ -1,90 +1,81 @@
-import pyzabbix
-import openpyxl
+from pyzabbix import ZabbixAPI
+import pandas as pd
 
-# Zabbix API connection details
-zabbix_server = "http://your_zabbix_server_url"
-zabbix_username = "your_zabbix_username"
-zabbix_password = "your_zabbix_password"
+# Connect to the Zabbix API
+zapi = ZabbixAPI("http://your_zabbix_server_url")
+zapi.login("your_username", "your_password")
 
-# Host group name
-host_group_name = "your_host_group_name"
+# Define host group name
+host_group_name = "Your Host Group Name"
 
-# Create Zabbix API connection
-zapi = pyzabbix.ZabbixAPI(url=zabbix_server)
-zapi.login(zabbix_username, zabbix_password)
-
-# Get host group ID
-host_groups = zapi.hostgroup.get({"filter": {"name": host_group_name}})
-if not host_groups:
+# Retrieve host group ID
+host_group = zapi.hostgroup.get(filter={"name": host_group_name})
+if not host_group:
     print(f"Host group '{host_group_name}' not found.")
-    exit(1)
-host_group_id = host_groups[0]["groupid"]
+    exit()
+host_group_id = host_group[0]["groupid"]
 
-# Get hosts in the host group
-hosts = zapi.host.get({"groupids": host_group_id, "output": ["hostid", "name", "status"]})
+# Retrieve hosts in the host group
+hosts = zapi.host.get(groupids=host_group_id, output=["hostid", "name", "status"])
 
-# Create a new Excel workbook
-wb = openpyxl.Workbook()
-ws = wb.active
-ws.title = f"Host Group: {host_group_name}"
+# Define severity mapping
+severity_mapping = {
+    '4': 'Major',
+    '3': 'Warning',
+    '2': 'Minor',
+    '1': 'Information'
+}
 
-# Set column headers
-ws.cell(row=1, column=1).value = "Host Name"
-ws.cell(row=1, column=2).value = "Host Status"
-ws.cell(row=1, column=3).value = "Item Name"
-ws.cell(row=1, column=4).value = "Item Interval"
-ws.cell(row=1, column=5).value = "Item Status"
-ws.cell(row=1, column=6).value = "Trigger Severity"
-ws.cell(row=1, column=7).value = "Trigger Status"
-ws.cell(row=1, column=8).value = "Media"
+data = []
 
-# Iterate through hosts
-row_num = 2
+# Retrieve data for each host
 for host in hosts:
     host_id = host["hostid"]
     host_name = host["name"]
-    host_status = host["status"]
-
-    # Get items for the host
+    host_status = "Enabled" if host["status"] == "0" else "Disabled"
+    
+    # Retrieve items for the host, filtering out inherited items
     items = zapi.item.get(
-        {"hostids": host_id, "output": ["hostid", "name", "key_", "status"]}
+        hostids=host_id,
+        output=["name", "status", "delay"],
+        filter={"templateid": "0"}
     )
-
-    # Iterate through items
+    
     for item in items:
         item_name = item["name"]
-        item_interval = item["key_"].split("[", 1)[1].rstrip("]")  # Extract interval from key
-        item_status = item["status"]
-
-        # Get triggers associated with the item
+        item_status = "Enabled" if item["status"] == "0" else "Disabled"
+        item_interval = item["delay"]
+        
+        # Retrieve triggers for the item
         triggers = zapi.trigger.get(
-            {"itemids": item["itemid"], "output": ["description", "severity", "status"]}
+            hostids=host_id,
+            output=["description", "priority", "status"],
+            itemids=item["itemid"]
         )
-
-        # Iterate through triggers
+        
         for trigger in triggers:
-            trigger_severity = trigger["severity"]
-            trigger_status = trigger["status"]
+            trigger_severity = severity_mapping.get(trigger["priority"], "Unknown")
+            trigger_status = "Enabled" if trigger["status"] == "0" else "Disabled"
+            
+            # Retrieve actions for the trigger
+            actions = zapi.action.get(
+                filter={"triggerid": trigger["triggerid"]},
+                output=["name"]
+            )
+            
+            action_names = [action["name"] for action in actions]
+            media = ", ".join(action_names)
+            
+            data.append([
+                host_name, host_status, item_name, item_interval, item_status,
+                trigger_severity, trigger_status, media
+            ])
 
-            # Get media associated with the trigger (using a separate request)
-            trigger_id = trigger["triggerid"]
-            conditions = {
-                "conditiontype": 1,  # Filter for trigger conditions only
-                "triggerid": trigger_id,
-            }
-            actions = zapi.action.get(output=["mediatype", "name"], conditions=conditions)
+# Create a DataFrame and save to Excel
+df = pd.DataFrame(data, columns=[
+    "Host Name", "Host Status", "Item Name", "Item Interval", "Item Status",
+    "Trigger Severity", "Trigger Status", "Media"
+])
 
-            media = ", ".join([action["name"] for action in actions if action["mediatype"] != 2])  # Exclude internal media
-
-            # Write data to Excel sheet
-            ws.cell(row=row_num, column=1).value = host_name
-            ws.cell(row=row_num, column=2).value = host_status
-            ws.cell(row=row_num, column=3).value = item_name
-            ws.cell(row=row_num, column=4).value = item_interval
-            ws.cell(row=row_num, column=5).value = item_status
-            ws.cell(row=row_num, column=6).value = trigger_severity
-            ws.cell(row=row_num, column=7).value = trigger_status
-            ws.cell(row=row_num, column=8).value = media
-            row_num += 1
-
-# Save the Excel workbook
+df.to_excel("zabbix_data.xlsx", index=False)
+print("Data has been exported to zabbix_data.xlsx")
