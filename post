@@ -1,84 +1,90 @@
+import pyzabbix
 import openpyxl
-from pyzabbix import ZabbixAPI
 
-# Zabbix API credentials and server URL
-zabbix_server_url = "http://your_zabbix_server_url"
+# Zabbix API connection details
+zabbix_server = "http://your_zabbix_server_url"
 zabbix_username = "your_zabbix_username"
 zabbix_password = "your_zabbix_password"
 
 # Host group name
-host_group_name = "Your Host Group Name"
+host_group_name = "your_host_group_name"
+
+# Create Zabbix API connection
+zapi = pyzabbix.ZabbixAPI(url=zabbix_server)
+zapi.login(zabbix_username, zabbix_password)
+
+# Get host group ID
+host_groups = zapi.hostgroup.get({"filter": {"name": host_group_name}})
+if not host_groups:
+    print(f"Host group '{host_group_name}' not found.")
+    exit(1)
+host_group_id = host_groups[0]["groupid"]
+
+# Get hosts in the host group
+hosts = zapi.host.get({"groupids": host_group_id, "output": ["hostid", "name", "status"]})
 
 # Create a new Excel workbook
 wb = openpyxl.Workbook()
 ws = wb.active
-ws.title = "Zabbix Host Group Information"
+ws.title = f"Host Group: {host_group_name}"
 
-# Column headers
+# Set column headers
 ws.cell(row=1, column=1).value = "Host Name"
 ws.cell(row=1, column=2).value = "Host Status"
 ws.cell(row=1, column=3).value = "Item Name"
-ws.cell(row=1, column=4).value = "Item Interval (seconds)"
+ws.cell(row=1, column=4).value = "Item Interval"
 ws.cell(row=1, column=5).value = "Item Status"
 ws.cell(row=1, column=6).value = "Trigger Severity"
 ws.cell(row=1, column=7).value = "Trigger Status"
-ws.cell(row=1, column=8).value = "Media Type"
+ws.cell(row=1, column=8).value = "Media"
 
-# Connect to Zabbix API
-try:
-    zapi = ZabbixAPI(zabbix_server_url, user=zabbix_username, password=zabbix_password)
-    zapi.session.login()
-except (ZabbixAPIException, Exception) as e:
-    print(f"Error connecting to Zabbix API: {e}")
-    exit()
-
-# Get host group ID
-host_groups = zapi.hostgroup.get(filter={"name": host_group_name})
-if not host_groups:
-    print(f"Host group '{host_group_name}' not found.")
-    exit()
-
-host_group_id = host_groups[0]["groupid"]
-
-# Get hosts in the host group
-hosts = zapi.host.get(groupids=[host_group_id], with_items=True,
-                     with_triggers=True, with_httptests=True, with_simple_graph_items=True)
-
-row_index = 2
+# Iterate through hosts
+row_num = 2
 for host in hosts:
-    host_name = host["host"]
+    host_id = host["hostid"]
+    host_name = host["name"]
     host_status = host["status"]
 
     # Get items for the host
-    for item in host["items"]:
+    items = zapi.item.get(
+        {"hostids": host_id, "output": ["hostid", "name", "key_", "status"]}
+    )
+
+    # Iterate through items
+    for item in items:
         item_name = item["name"]
-        item_interval = item["interval"]
-        item_status = item.get("status", "N/A")  # Handle missing status
+        item_interval = item["key_"].split("[", 1)[1].rstrip("]")  # Extract interval from key
+        item_status = item["status"]
 
         # Get triggers associated with the item
-        for trigger in item.get("triggers", []):
-            trigger_severity = trigger["priority"]
+        triggers = zapi.trigger.get(
+            {"itemids": item["itemid"], "output": ["description", "severity", "status"]}
+        )
+
+        # Iterate through triggers
+        for trigger in triggers:
+            trigger_severity = trigger["severity"]
             trigger_status = trigger["status"]
 
-            # Get media types associated with the trigger
-            media_types = []
-            for media in trigger.get("mediatypes", []):
-                media_type_id = media["mediaid"]
-                media_types.append(zapi.mediatype.get(mediaid=media_type_id)[0]["name"])
+            # Get media associated with the trigger (using a separate request)
+            trigger_id = trigger["triggerid"]
+            conditions = {
+                "conditiontype": 1,  # Filter for trigger conditions only
+                "triggerid": trigger_id,
+            }
+            actions = zapi.action.get(output=["mediatype", "name"], conditions=conditions)
+
+            media = ", ".join([action["name"] for action in actions if action["mediatype"] != 2])  # Exclude internal media
 
             # Write data to Excel sheet
-            ws.cell(row=row_index, column=1).value = host_name
-            ws.cell(row=row_index, column=2).value = host_status
-            ws.cell(row=row_index, column=3).value = item_name
-            ws.cell(row=row_index, column=4).value = item_interval
-            ws.cell(row=row_index, column=5).value = item_status
-            ws.cell(row=row_index, column=6).value = trigger_severity
-            ws.cell(row=index, column=7).value = trigger_status
-            ws.cell(row=index, column=8).value = ", ".join(media_types)  # Concatenate media types
-
-            row_index += 1
+            ws.cell(row=row_num, column=1).value = host_name
+            ws.cell(row=row_num, column=2).value = host_status
+            ws.cell(row=row_num, column=3).value = item_name
+            ws.cell(row=row_num, column=4).value = item_interval
+            ws.cell(row=row_num, column=5).value = item_status
+            ws.cell(row=row_num, column=6).value = trigger_severity
+            ws.cell(row=row_num, column=7).value = trigger_status
+            ws.cell(row=row_num, column=8).value = media
+            row_num += 1
 
 # Save the Excel workbook
-wb.save("zabbix_host_group_info.xlsx")
-
-print("Zabbix host group information retrieved and saved to 'zabbix_host_group_info.xlsx'.")
