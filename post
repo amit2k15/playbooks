@@ -1,65 +1,64 @@
-import pandas as pd
 from pyzabbix import ZabbixAPI
+import pandas as pd
+from openpyxl import Workbook
 
-# Define your Zabbix server details
-zabbix_server = 'http://your_zabbix_server'
-username = 'your_username'
-password = 'your_password'
+# Replace with your Zabbix server details
+ZABBIX_SERVER = 'https://your_zabbix_server'
+USERNAME = 'your_username'
+PASSWORD = 'your_password'
+HOST_GROUP_NAME = 'your_host_group_name'
 
-# Connect to Zabbix API
-zapi = ZabbixAPI(zabbix_server)
-zapi.login(username, password)
+# Connect to the Zabbix server
+zapi = ZabbixAPI(ZABBIX_SERVER)
+zapi.login(USERNAME, PASSWORD)
 
-# Function to get data for a specific host group
-def get_host_group_data(host_group_name):
-    host_group_id = zapi.hostgroup.get(filter={'name': host_group_name})[0]['groupid']
+# Get the host group ID
+host_group = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
+if not host_group:
+    print(f"No host group found with the name {HOST_GROUP_NAME}")
+    exit()
+
+host_group_id = host_group[0]['groupid']
+
+# Get the hosts in the host group
+hosts = zapi.host.get(groupids=host_group_id, selectItems='extend', selectTriggers='extend', selectApplications='extend')
+
+data = []
+
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+    host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
     
-    hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name', 'status'])
-    data = []
-    
-    for host in hosts:
-        hostid = host['hostid']
-        host_name = host['name']
-        host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
+    # Get the items for each host
+    items = zapi.item.get(hostids=host_id, output=['name', 'key_', 'delay', 'status'])
+    for item in items:
+        item_name = item['name']
+        item_details = item['key_']
+        item_interval = item['delay']
+        item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
         
-        items = zapi.item.get(hostids=hostid, output=['name', 'key_', 'status', 'delay'])
-        for item in items:
-            item_name = item['name']
-            item_key = item['key_']
-            item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
-            item_interval = item['delay']
+        # Get the triggers for each item
+        triggers = zapi.trigger.get(itemids=item['itemid'], output=['description', 'priority', 'status'])
+        for trigger in triggers:
+            trigger_severity = trigger['priority']
+            trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
             
-            parameter = ''
-            if 'url' in item_key.lower():
-                parameter = item_key
-            elif 'db' in item_key.lower() or 'database' in item_key.lower():
-                parameter = item_key
-            
-            triggers = zapi.trigger.get(hostids=hostid, output=['description', 'priority', 'status'])
-            for trigger in triggers:
-                trigger_severity = trigger['priority']
-                trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-                actions = zapi.action.get(triggerids=trigger['triggerid'], output=['name', 'eventsource', 'status'])
+            # Get the actions for each trigger
+            actions = zapi.action.get(triggerids=trigger['triggerid'], output=['name', 'eventsource'])
+            for action in actions:
+                action_type = action['eventsource']
                 
-                for action in actions:
-                    action_type = action['eventsource']
-                    media = zapi.mediatype.get(mediaids=action['name'], output=['description'])[0]['description']
-                    
-                    data.append([
-                        host_name, host_status, item_name, parameter, item_interval, item_status, 
-                        trigger_severity, trigger_status, action_type, media
-                    ])
-                    
-    return data
+                # Get the media for each action
+                media = zapi.mediatype.get(actionids=action['actionid'], output='extend')
+                for m in media:
+                    media_type = m['description']
+                    data.append([host_name, host_status, item_name, item_details, item_interval, item_status, trigger_severity, trigger_status, action_type, media_type])
 
-# Retrieve data for a specific host group
-host_group_name = 'Your Host Group Name'
-data = get_host_group_data(host_group_name)
+# Create a DataFrame
+df = pd.DataFrame(data, columns=['Host Name', 'Host Status', 'Item Name', 'Item Details', 'Item Interval', 'Item Status', 'Trigger Severity', 'Trigger Status', 'Action Type', 'Media'])
 
-# Create a DataFrame and save to Excel
-columns = ['Host Name', 'Host Status', 'Item Name', 'Parameter', 'Item Interval', 'Item Status', 
-           'Trigger Severity', 'Trigger Status', 'Action Type', 'Media']
-df = pd.DataFrame(data, columns=columns)
+# Save the DataFrame to an Excel file
 df.to_excel('zabbix_data.xlsx', index=False)
 
-print('Data has been successfully retrieved and saved to zabbix_data.xlsx')
+print("Data saved to zabbix_data.xlsx")
