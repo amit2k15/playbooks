@@ -1,67 +1,84 @@
+import openpyxl
 from pyzabbix import ZabbixAPI
-import pandas as pd
 
-# Replace with your Zabbix server URL, username, and password
-zabbix_server = 'http://your_zabbix_server_url'
-zabbix_username = 'your_zabbix_username'
-zabbix_password = 'your_zabbix_password'
-host_group_name = 'Your Host Group Name'
+# Zabbix API credentials and server URL
+zabbix_server_url = "http://your_zabbix_server_url"
+zabbix_username = "your_zabbix_username"
+zabbix_password = "your_zabbix_password"
+
+# Host group name
+host_group_name = "Your Host Group Name"
+
+# Create a new Excel workbook
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.title = "Zabbix Host Group Information"
+
+# Column headers
+ws.cell(row=1, column=1).value = "Host Name"
+ws.cell(row=1, column=2).value = "Host Status"
+ws.cell(row=1, column=3).value = "Item Name"
+ws.cell(row=1, column=4).value = "Item Interval (seconds)"
+ws.cell(row=1, column=5).value = "Item Status"
+ws.cell(row=1, column=6).value = "Trigger Severity"
+ws.cell(row=1, column=7).value = "Trigger Status"
+ws.cell(row=1, column=8).value = "Media Type"
 
 # Connect to Zabbix API
-zapi = ZabbixAPI(zabbix_server)
-zapi.login(zabbix_username, zabbix_password)
+try:
+    zapi = ZabbixAPI(zabbix_server_url, user=zabbix_username, password=zabbix_password)
+    zapi.session.login()
+except (ZabbixAPIException, Exception) as e:
+    print(f"Error connecting to Zabbix API: {e}")
+    exit()
 
-# Get host group ID by name
+# Get host group ID
 host_groups = zapi.hostgroup.get(filter={"name": host_group_name})
 if not host_groups:
     print(f"Host group '{host_group_name}' not found.")
     exit()
-host_group_id = host_groups[0]['groupid']
 
-# Get hosts in the specified host group
-hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name', 'status'])
-host_data = []
+host_group_id = host_groups[0]["groupid"]
+
+# Get hosts in the host group
+hosts = zapi.host.get(groupids=[host_group_id], with_items=True,
+                     with_triggers=True, with_httptests=True, with_simple_graph_items=True)
+
+row_index = 2
 for host in hosts:
-    host_id = host['hostid']
-    host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
-    
-    # Get items for each host
-    items = zapi.item.get(hostids=host_id, output=['name', 'status', 'delay'])
-    for item in items:
-        item_name = item['name']
-        item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
-        item_interval = item['delay']
-        
-        # Get triggers for each item
-        triggers = zapi.trigger.get(hostids=host_id, itemids=item['itemid'], output=['priority', 'status'])
-        for trigger in triggers:
-            trigger_severity = trigger['priority']
-            trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-            
-            # Get media for each host (if any)
-            medias = zapi.mediatype.get(hostids=host_id, output=['description'])
-            media_descriptions = [media['description'] for media in medias]
-            media_list = ', '.join(media_descriptions) if media_descriptions else 'None'
-            
-            # Append data to list
-            host_data.append({
-                'Host Name': host['name'],
-                'Host Status': host_status,
-                'Item Name': item_name,
-                'Item Interval': item_interval,
-                'Item Status': item_status,
-                'Trigger Severity': trigger_severity,
-                'Trigger Status': trigger_status,
-                'Media': media_list
-            })
+    host_name = host["host"]
+    host_status = host["status"]
 
-# Create DataFrame
-df = pd.DataFrame(host_data)
+    # Get items for the host
+    for item in host["items"]:
+        item_name = item["name"]
+        item_interval = item["interval"]
+        item_status = item.get("status", "N/A")  # Handle missing status
 
-# Save to Excel
-excel_file = 'zabbix_host_data.xlsx'
-df.to_excel(excel_file, index=False)
-print(f"Data saved to {excel_file}")
+        # Get triggers associated with the item
+        for trigger in item.get("triggers", []):
+            trigger_severity = trigger["priority"]
+            trigger_status = trigger["status"]
 
-# Logout from Zabbix API
-zapi.logout()
+            # Get media types associated with the trigger
+            media_types = []
+            for media in trigger.get("mediatypes", []):
+                media_type_id = media["mediaid"]
+                media_types.append(zapi.mediatype.get(mediaid=media_type_id)[0]["name"])
+
+            # Write data to Excel sheet
+            ws.cell(row=row_index, column=1).value = host_name
+            ws.cell(row=row_index, column=2).value = host_status
+            ws.cell(row=row_index, column=3).value = item_name
+            ws.cell(row=row_index, column=4).value = item_interval
+            ws.cell(row=row_index, column=5).value = item_status
+            ws.cell(row=row_index, column=6).value = trigger_severity
+            ws.cell(row=index, column=7).value = trigger_status
+            ws.cell(row=index, column=8).value = ", ".join(media_types)  # Concatenate media types
+
+            row_index += 1
+
+# Save the Excel workbook
+wb.save("zabbix_host_group_info.xlsx")
+
+print("Zabbix host group information retrieved and saved to 'zabbix_host_group_info.xlsx'.")
