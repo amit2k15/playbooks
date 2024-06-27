@@ -1,64 +1,69 @@
 from pyzabbix import ZabbixAPI
 import pandas as pd
-from openpyxl import Workbook
 
-# Replace with your Zabbix server details
-ZABBIX_SERVER = 'https://your_zabbix_server'
-USERNAME = 'your_username'
-PASSWORD = 'your_password'
-HOST_GROUP_NAME = 'your_host_group_name'
+# Zabbix server credentials
+zabbix_server = 'https://your_zabbix_server_url'
+username = 'your_username'
+password = 'your_password'
 
-# Connect to the Zabbix server
-zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(USERNAME, PASSWORD)
+# Host group name to filter
+host_group_name = 'Your Host Group Name'
+
+# Connect to Zabbix API
+zapi = ZabbixAPI(zabbix_server)
+zapi.login(username, password)
 
 # Get the host group ID
-host_group = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
-if not host_group:
-    print(f"No host group found with the name {HOST_GROUP_NAME}")
+host_groups = zapi.hostgroup.get(filter={'name': host_group_name})
+if not host_groups:
+    print(f"Host group '{host_group_name}' not found.")
     exit()
+host_group_id = host_groups[0]['groupid']
 
-host_group_id = host_group[0]['groupid']
+# Get hosts in the host group
+hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'host', 'status'])
 
-# Get the hosts in the host group
-hosts = zapi.host.get(groupids=host_group_id, selectItems='extend', selectTriggers='extend', selectApplications='extend')
-
+# Initialize list to store data
 data = []
 
+# Fetch items, triggers, and media for each host
 for host in hosts:
     host_id = host['hostid']
     host_name = host['host']
     host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
     
-    # Get the items for each host
-    items = zapi.item.get(hostids=host_id, output=['name', 'key_', 'delay', 'status'])
+    items = zapi.item.get(hostids=host_id, output=['name', 'status', 'delay'])
+    triggers = zapi.trigger.get(hostids=host_id, output=['priority', 'status', 'description'])
+    media = zapi.usermedia.get(userid=host_id, output=['mediatypeid', 'sendto'])
+
     for item in items:
         item_name = item['name']
-        item_details = item['key_']
-        item_interval = item['delay']
         item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
+        item_interval = item['delay']
         
-        # Get the triggers for each item
-        triggers = zapi.trigger.get(itemids=item['itemid'], output=['description', 'priority', 'status'])
         for trigger in triggers:
             trigger_severity = trigger['priority']
             trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
             
-            # Get the actions for each trigger
-            actions = zapi.action.get(triggerids=trigger['triggerid'], output=['name', 'eventsource'])
-            for action in actions:
-                action_type = action['eventsource']
+            for medium in media:
+                media_type = medium['mediatypeid']
+                media_sendto = medium['sendto']
                 
-                # Get the media for each action
-                media = zapi.mediatype.get(actionids=action['actionid'], output='extend')
-                for m in media:
-                    media_type = m['description']
-                    data.append([host_name, host_status, item_name, item_details, item_interval, item_status, trigger_severity, trigger_status, action_type, media_type])
+                data.append([
+                    host_name,
+                    host_status,
+                    item_name,
+                    item_interval,
+                    item_status,
+                    trigger_severity,
+                    trigger_status,
+                    media_type,
+                    media_sendto
+                ])
 
-# Create a DataFrame
-df = pd.DataFrame(data, columns=['Host Name', 'Host Status', 'Item Name', 'Item Details', 'Item Interval', 'Item Status', 'Trigger Severity', 'Trigger Status', 'Action Type', 'Media'])
-
-# Save the DataFrame to an Excel file
+# Create a DataFrame and save it to an Excel file
+columns = ['Host Name', 'Host Status', 'Item Name', 'Item Interval', 'Item Status', 'Trigger Severity', 'Trigger Status', 'Media Type', 'Media Sendto']
+df = pd.DataFrame(data, columns=columns)
 df.to_excel('zabbix_data.xlsx', index=False)
 
-print("Data saved to zabbix_data.xlsx")
+print("Data has been successfully saved to 'zabbix_data.xlsx'.")
