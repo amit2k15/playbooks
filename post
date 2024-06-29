@@ -1,81 +1,93 @@
 from pyzabbix import ZabbixAPI
 import pandas as pd
 
-# Connect to the Zabbix API
-zapi = ZabbixAPI("http://your_zabbix_server_url")
-zapi.login("your_username", "your_password")
-
-# Define host group name
-host_group_name = "Your Host Group Name"
-
-# Retrieve host group ID
-host_group = zapi.hostgroup.get(filter={"name": host_group_name})
-if not host_group:
-    print(f"Host group '{host_group_name}' not found.")
-    exit()
-host_group_id = host_group[0]["groupid"]
-
-# Retrieve hosts in the host group
-hosts = zapi.host.get(groupids=host_group_id, output=["hostid", "name", "status"])
-
-# Define severity mapping
-severity_mapping = {
-    '4': 'Major',
-    '3': 'Warning',
-    '2': 'Minor',
-    '1': 'Information'
-}
-
-data = []
-
-# Retrieve data for each host
-for host in hosts:
-    host_id = host["hostid"]
-    host_name = host["name"]
-    host_status = "Enabled" if host["status"] == "0" else "Disabled"
+# Function to get data from Zabbix API
+def get_zabbix_data(zapi, hostgroup_name):
+    # Get host group ID
+    hostgroup = zapi.hostgroup.get(filter={"name": hostgroup_name})
+    if not hostgroup:
+        raise ValueError(f"Host group '{hostgroup_name}' not found")
+    hostgroup_id = hostgroup[0]['groupid']
     
-    # Retrieve items for the host, filtering out inherited items
-    items = zapi.item.get(
-        hostids=host_id,
-        output=["name", "status", "delay"],
-        filter={"templateid": "0"}
-    )
+    # Get hosts in the host group
+    hosts = zapi.host.get(groupids=hostgroup_id, output=["hostid", "name", "status"])
     
-    for item in items:
-        item_name = item["name"]
-        item_status = "Enabled" if item["status"] == "0" else "Disabled"
-        item_interval = item["delay"]
+    # Prepare data containers
+    data = []
+    
+    # Iterate over each host
+    for host in hosts:
+        host_id = host['hostid']
+        host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
         
-        # Retrieve triggers for the item
-        triggers = zapi.trigger.get(
-            hostids=host_id,
-            output=["description", "priority", "status"],
-            itemids=item["itemid"]
-        )
-        
-        for trigger in triggers:
-            trigger_severity = severity_mapping.get(trigger["priority"], "Unknown")
-            trigger_status = "Enabled" if trigger["status"] == "0" else "Disabled"
+        # Get items for the host
+        items = zapi.item.get(hostids=host_id, output=["name", "status", "delay"])
+        for item in items:
+            item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
+            item_delay = item['delay']
             
-            # Retrieve actions for the trigger
-            actions = zapi.action.get(
-                filter={"triggerid": trigger["triggerid"]},
-                output=["name"]
-            )
-            
-            action_names = [action["name"] for action in actions]
-            media = ", ".join(action_names)
-            
-            data.append([
-                host_name, host_status, item_name, item_interval, item_status,
-                trigger_severity, trigger_status, media
-            ])
+            # Get triggers for the item
+            triggers = zapi.trigger.get(itemids=item['itemid'], output=["description", "status", "priority"])
+            for trigger in triggers:
+                trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
+                trigger_severity = trigger['priority']
+                
+                # Get web scenarios for the host
+                webscenarios = zapi.httptest.get(hostids=host_id, output=["name", "status"])
+                for webscenario in webscenarios:
+                    webscenario_status = 'Enabled' if webscenario['status'] == '0' else 'Disabled'
+                    webscenario_name = webscenario['name']
+                    
+                    # Get URLs for the web scenario
+                    steps = zapi.httptest.get(testids=webscenario['httptestid'], output=["steps"])
+                    for step in steps[0]['steps']:
+                        url = step['url']
+                        delay = step['delay']
+                        
+                        # Get database monitors for the host
+                        db_monitors = zapi.db.odbc.query.get(hostids=host_id, output=["name", "sql_query", "delay"])
+                        for db_monitor in db_monitors:
+                            db_monitor_name = db_monitor['name']
+                            db_monitor_query = db_monitor['sql_query']
+                            db_monitor_delay = db_monitor['delay']
+                            
+                            # Collect data
+                            data.append([
+                                host['name'], host_status, item['name'], item_status, item_delay,
+                                webscenario_name, webscenario_status, url, delay,
+                                trigger['description'], trigger_status, trigger_severity,
+                                db_monitor_name, db_monitor_query, db_monitor_delay
+                            ])
+    
+    return data
 
-# Create a DataFrame and save to Excel
-df = pd.DataFrame(data, columns=[
-    "Host Name", "Host Status", "Item Name", "Item Interval", "Item Status",
-    "Trigger Severity", "Trigger Status", "Media"
-])
+# Main function
+def main(zabbix_url, zabbix_user, zabbix_password, hostgroup_name, output_file):
+    # Connect to Zabbix API
+    zapi = ZabbixAPI(zabbix_url)
+    zapi.login(zabbix_user, zabbix_password)
+    
+    # Get data from Zabbix
+    data = get_zabbix_data(zapi, hostgroup_name)
+    
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=[
+        'Host Name', 'Host Status', 'Item Name', 'Item Status', 'Item Delay',
+        'Web Scenario Name', 'Web Scenario Status', 'URL', 'URL Delay',
+        'Trigger Name', 'Trigger Status', 'Trigger Severity',
+        'Database Monitor Name', 'Database Monitor SQL Query', 'Database Monitor Interval'
+    ])
+    
+    # Save DataFrame to Excel
+    df.to_excel(output_file, index=False)
+    print(f"Data has been saved to {output_file}")
 
-df.to_excel("zabbix_data.xlsx", index=False)
-print("Data has been exported to zabbix_data.xlsx")
+# Execute main function
+if __name__ == "__main__":
+    zabbix_url = "http://your_zabbix_server/zabbix"
+    zabbix_user = "your_username"
+    zabbix_password = "your_password"
+    hostgroup_name = "Your Host Group"
+    output_file = "zabbix_report.xlsx"
+    
+    main(zabbix_url, zabbix_user, zabbix_password, hostgroup_name, output_file)
