@@ -1,78 +1,69 @@
 import pandas as pd
 from pyzabbix import ZabbixAPI
 
-# Replace these with your Zabbix server details
+# Define your Zabbix server URL and credentials
 ZABBIX_SERVER = 'https://your_zabbix_server_url'
-ZABBIX_USER = 'your_zabbix_username'
-ZABBIX_PASSWORD = 'your_zabbix_password'
-HOST_GROUP_NAME = 'YourHostGroupName'
+USERNAME = 'your_username'
+PASSWORD = 'your_password'
+HOST_GROUP_NAME = 'Your_Host_Group_Name'
 
-# Connect to the Zabbix server
+# Initialize the Zabbix API connection
 zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
+zapi.login(USERNAME, PASSWORD)
 
-# Get the host group ID
-host_group = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
-if not host_group:
-    raise ValueError(f"Host group '{HOST_GROUP_NAME}' not found.")
-host_group_id = host_group[0]['groupid']
+# Get host group ID
+host_groups = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
+if not host_groups:
+    print(f"Host group '{HOST_GROUP_NAME}' not found.")
+    exit()
+
+host_group_id = host_groups[0]['groupid']
 
 # Get hosts in the specified host group
-hosts = zapi.host.get(groupids=host_group_id, output=["hostid", "host", "status"])
+hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'host', 'status'])
 
-# Initialize an empty list to store the report data
-report_data = []
+# Prepare data storage
+data = []
 
-# Define the application name filter
-app_name_filter = ["Disk", "filesystem", "interface", "inventory", "monitoring", "Services", "status", "raw"]
-
-# Iterate through each host
 for host in hosts:
     host_id = host['hostid']
     host_name = host['host']
     host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
     
-    # Get items for the host
-    items = zapi.item.get(hostids=host_id, output=["itemid", "name", "key_", "status", "delay", "applications"])
+    # Get items for each host, excluding templateid 10081
+    items = zapi.item.get(hostids=host_id, filter={"templateid": "0"}, output=['name', 'status', 'delay', 'params'])
     
     for item in items:
-        # Filter out items based on application name
-        applications = zapi.application.get(applicationids=item['applications'], output=["name"])
-        app_names = [app['name'] for app in applications]
-        if any(filter_word in ' '.join(app_names) for filter_word in app_name_filter):
-            continue
-        
         item_name = item['name']
-        item_params = item['key_']
         item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
         item_delay = item['delay']
-        
-        # Get triggers for the item
-        triggers = zapi.trigger.get(itemids=item['itemid'], output=["triggerid", "description", "priority", "status"])
-        
+        item_params = item['params']
+
+        # Get triggers for each item
+        triggers = zapi.trigger.get(itemids=item['itemid'], output=['description', 'status', 'priority'])
+
         for trigger in triggers:
             trigger_name = trigger['description']
             trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
             trigger_severity = trigger['priority']
-            
-            # Add the data to the report
-            report_data.append({
-                "Host Name": host_name,
-                "Host Status": host_status,
-                "Item Name": item_name,
-                "Item Params": item_params,
-                "Item Status": item_status,
-                "Delay": item_delay,
-                "Trigger Name": trigger_name,
-                "Trigger Status": trigger_status,
-                "Trigger Severity": trigger_severity
+
+            # Add data to the list
+            data.append({
+                'Host Name': host_name,
+                'Host Status': host_status,
+                'Item Name': item_name,
+                'Item Params': item_params,
+                'Item Status': item_status,
+                'Delay': item_delay,
+                'Trigger Name': trigger_name,
+                'Trigger Status': trigger_status,
+                'Trigger Severity': trigger_severity
             })
 
-# Create a DataFrame from the report data
-df = pd.DataFrame(report_data)
+# Convert data to a pandas DataFrame
+df = pd.DataFrame(data)
 
 # Save the DataFrame to an Excel file
-output_file = "zabbix_report.xlsx"
-df.to_excel(output_file, index=False)
+df.to_excel('zabbix_report.xlsx', index=False)
 
-print(f"Report saved to {output_file}")
+print("Report has been saved to 'zabbix_report.xlsx'.")
