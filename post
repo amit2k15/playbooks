@@ -1,69 +1,68 @@
-import pandas as pd
+import openpyxl
 from pyzabbix import ZabbixAPI
 
-# Define your Zabbix server URL and credentials
-ZABBIX_SERVER = 'https://your_zabbix_server_url'
-USERNAME = 'your_username'
-PASSWORD = 'your_password'
-HOST_GROUP_NAME = 'Your_Host_Group_Name'
+# Zabbix API connection details
+zabbix_server_url = "http://your_zabbix_server/zabbix/"
+zabbix_username = "your_username"
+zabbix_password = "your_password"
 
-# Initialize the Zabbix API connection
-zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(USERNAME, PASSWORD)
+# Host group details (replace with your group ID)
+host_group_id = 1
 
-# Get host group ID
-host_groups = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
-if not host_groups:
-    print(f"Host group '{HOST_GROUP_NAME}' not found.")
-    exit()
+# Template ID to exclude items from (replace with desired ID)
+template_id_to_exclude = 10081
 
-host_group_id = host_groups[0]['groupid']
+# Create a new Excel workbook
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.title = "Zabbix Host Group Report (Excluding Template ID {})".format(template_id_to_exclude)
 
-# Get hosts in the specified host group
-hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'host', 'status'])
+# Define column headers
+headers = ["Host Name", "Host Status", "Item Name", "Item Params", "Item Status", "Delay", "Trigger Name", "Trigger Status", "Trigger Severity"]
+ws.append(headers)
 
-# Prepare data storage
-data = []
+# Connect to Zabbix API
+zapi = ZabbixAPI(zabbix_server_url, user=zabbix_username, password=zabbix_password)
 
+# Get host group information
+host_group = zapi.hostgroup.get(filter={"groupid": host_group_id})[0]
+host_group_name = host_group["name"]
+
+# Get hosts in the specified group
+hosts = zapi.host.get(filter={"groupids": host_group_id}, select_items=["hostid", "name", "status"])
+
+# Loop through each host
 for host in hosts:
-    host_id = host['hostid']
-    host_name = host['host']
-    host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
-    
-    # Get items for each host, excluding templateid 10081
-    items = zapi.item.get(hostids=host_id, filter={"templateid": "0"}, output=['name', 'status', 'delay', 'params'])
-    
-    for item in items:
-        item_name = item['name']
-        item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
-        item_delay = item['delay']
-        item_params = item['params']
+    host_id = host["hostid"]
+    host_name = host["name"]
+    host_status = host["status"]
 
-        # Get triggers for each item
-        triggers = zapi.trigger.get(itemids=item['itemid'], output=['description', 'status', 'priority'])
+    # Get items for the current host
+    items = zapi.item.get(hostids=host_id, select_triggers=["triggerid", "name", "status", "severity"], output=["hostid", "name", "key", "params", "status", "lasterror"])
 
+    # Filter items to exclude those from the specified template
+    filtered_items = [item for item in items if item["templateid"] != template_id_to_exclude]
+
+    # Loop through each filtered item
+    for item in filtered_items:
+        item_name = item["name"]
+        item_params = item["params"]
+        item_status = item["status"]
+        item_delay = item.get("delay", "N/A")  # Handle potential absence of "delay" key
+
+        # Get trigger information for the item
+        triggers = item["triggers"]
         for trigger in triggers:
-            trigger_name = trigger['description']
-            trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-            trigger_severity = trigger['priority']
+            trigger_name = trigger["name"]
+            trigger_status = trigger["status"]
+            trigger_severity = trigger["severity"]
 
-            # Add data to the list
-            data.append({
-                'Host Name': host_name,
-                'Host Status': host_status,
-                'Item Name': item_name,
-                'Item Params': item_params,
-                'Item Status': item_status,
-                'Delay': item_delay,
-                'Trigger Name': trigger_name,
-                'Trigger Status': trigger_status,
-                'Trigger Severity': trigger_severity
-            })
+            # Write data to the Excel sheet
+            data_row = [host_name, host_status, item_name, item_params, item_status, item_delay, trigger_name, trigger_status, trigger_severity]
+            ws.append(data_row)
 
-# Convert data to a pandas DataFrame
-df = pd.DataFrame(data)
+# Save the Excel report
+report_filename = "Zabbix_Host_Group_Report_{}.xlsx".format(host_group_name)
+wb.save(filename=report_filename)
 
-# Save the DataFrame to an Excel file
-df.to_excel('zabbix_report.xlsx', index=False)
-
-print("Report has been saved to 'zabbix_report.xlsx'.")
+print("Zabbix Host Group Report generated successfully! Saved as:", report_filename)
