@@ -1,59 +1,78 @@
-from pyzabbix import ZabbixAPI
 import pandas as pd
+from pyzabbix import ZabbixAPI
 
-# Connect to Zabbix API
-zabbix_url = "http://your_zabbix_server_url/zabbix"
-zabbix_user = "your_username"
-zabbix_password = "your_password"
+# Replace these with your Zabbix server details
+ZABBIX_SERVER = 'https://your_zabbix_server_url'
+ZABBIX_USER = 'your_zabbix_username'
+ZABBIX_PASSWORD = 'your_zabbix_password'
+HOST_GROUP_NAME = 'YourHostGroupName'
 
-zapi = ZabbixAPI(zabbix_url)
-zapi.login(zabbix_user, zabbix_password)
+# Connect to the Zabbix server
+zapi = ZabbixAPI(ZABBIX_SERVER)
+zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
-# Function to get the host group ID by name
-def get_hostgroup_id(hostgroup_name):
-    hostgroups = zapi.hostgroup.get(output=["groupid", "name"])
-    for hostgroup in hostgroups:
-        if hostgroup['name'] == hostgroup_name:
-            return hostgroup['groupid']
-    return None
+# Get the host group ID
+host_group = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
+if not host_group:
+    raise ValueError(f"Host group '{HOST_GROUP_NAME}' not found.")
+host_group_id = host_group[0]['groupid']
 
-# Function to get host data for a specific host group
-def get_hosts_data(hostgroup_id):
-    hosts_data = []
-    hosts = zapi.host.get(groupids=hostgroup_id, output=["hostid", "name", "status"])
-    for host in hosts:
-        host_id = host["hostid"]
-        items = zapi.item.get(hostids=host_id, output=["itemid", "name", "status", "params", "delay"])
-        triggers = zapi.trigger.get(hostids=host_id, output=["triggerid", "description", "status", "priority"])
-        
-        for item in items:
-            for trigger in triggers:
-                hosts_data.append({
-                    "Host Name": host["name"],
-                    "Host Status": "Enabled" if host["status"] == "0" else "Disabled",
-                    "Item Name": item["name"],
-                    "Item Params": item.get("params", ""),
-                    "Item Status": "Enabled" if item["status"] == "0" else "Disabled",
-                    "Delay": item["delay"],
-                    "Trigger Name": trigger["description"],
-                    "Trigger Status": "Enabled" if trigger["status"] == "0" else "Disabled",
-                    "Trigger Severity": trigger["priority"]
-                })
-    return hosts_data
+# Get hosts in the specified host group
+hosts = zapi.host.get(groupids=host_group_id, output=["hostid", "host", "status"])
 
-# Main function to create the Excel report
-def create_excel_report(hostgroup_name, output_file):
-    hostgroup_id = get_hostgroup_id(hostgroup_name)
-    if not hostgroup_id:
-        print(f"Host group '{hostgroup_name}' not found.")
-        return
+# Initialize an empty list to store the report data
+report_data = []
+
+# Define the application name filter
+app_name_filter = ["Disk", "filesystem", "interface", "inventory", "monitoring", "Services", "status", "raw"]
+
+# Iterate through each host
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['host']
+    host_status = 'Enabled' if host['status'] == '0' else 'Disabled'
     
-    hosts_data = get_hosts_data(hostgroup_id)
-    df = pd.DataFrame(hosts_data)
-    df.to_excel(output_file, index=False)
-    print(f"Report saved to {output_file}")
+    # Get items for the host
+    items = zapi.item.get(hostids=host_id, output=["itemid", "name", "key_", "status", "delay", "applications"])
+    
+    for item in items:
+        # Filter out items based on application name
+        applications = zapi.application.get(applicationids=item['applications'], output=["name"])
+        app_names = [app['name'] for app in applications]
+        if any(filter_word in ' '.join(app_names) for filter_word in app_name_filter):
+            continue
+        
+        item_name = item['name']
+        item_params = item['key_']
+        item_status = 'Enabled' if item['status'] == '0' else 'Disabled'
+        item_delay = item['delay']
+        
+        # Get triggers for the item
+        triggers = zapi.trigger.get(itemids=item['itemid'], output=["triggerid", "description", "priority", "status"])
+        
+        for trigger in triggers:
+            trigger_name = trigger['description']
+            trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
+            trigger_severity = trigger['priority']
+            
+            # Add the data to the report
+            report_data.append({
+                "Host Name": host_name,
+                "Host Status": host_status,
+                "Item Name": item_name,
+                "Item Params": item_params,
+                "Item Status": item_status,
+                "Delay": item_delay,
+                "Trigger Name": trigger_name,
+                "Trigger Status": trigger_status,
+                "Trigger Severity": trigger_severity
+            })
 
-# Example usage
-hostgroup_name = "Your Host Group Name"
+# Create a DataFrame from the report data
+df = pd.DataFrame(report_data)
+
+# Save the DataFrame to an Excel file
 output_file = "zabbix_report.xlsx"
-create_excel_report(hostgroup_name, output_file)
+df.to_excel(output_file, index=False)
+
+print(f"Report saved to {output_file}")
