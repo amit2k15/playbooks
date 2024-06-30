@@ -1,75 +1,81 @@
-from pyzabbix import ZabbixAPI
-import openpyxl
-from openpyxl import Workbook
+from pyzabbix import ZabbixAPI, ZabbixAPIException
+import pandas as pd
 
-# Define the mapping for trigger severity
-severity_mapping = {
-    '1': 'Minor',
-    '2': 'Minor',
-    '3': 'Warning',
-    '4': 'Major'
-}
+# Zabbix server credentials
+zabbix_url = 'http://your_zabbix_server_url/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
-# Zabbix server connection details
-ZABBIX_SERVER = 'https://your_zabbix_server_url'
-ZABBIX_USER = 'your_username'
-ZABBIX_PASSWORD = 'your_password'
+# Initialize Zabbix API session
+try:
+    zapi = ZabbixAPI(zabbix_url, user=zabbix_user, password=zabbix_password)
 
-# Host group name
-HOST_GROUP_NAME = 'your_host_group_name'
+    # Specify the host group name you want to query
+    host_group_name = 'Your Host Group Name'
 
-# Connect to Zabbix server
-zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
+    # Get hosts in the specified host group
+    hosts = zapi.host.get(output='extend', groupids=zapi.hostgroup.get(filter={'name': host_group_name})[0]['groupid'])
 
-# Get the host group ID
-host_groups = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
-if not host_groups:
-    print(f"Host group '{HOST_GROUP_NAME}' not found")
-    exit()
+    data = []
 
-host_group_id = host_groups[0]['groupid']
+    # Loop through each host in the host group
+    for host in hosts:
+        host_name = host['name']
 
-# Get hosts in the host group
-hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name'])
+        # Get web scenarios for the current host
+        web_scenarios = zapi.httptest.get(output='extend', selectSteps='extend', hostids=host['hostid'])
 
-# Create a new Excel workbook and add a sheet
-wb = Workbook()
-ws = wb.active
-ws.title = "Zabbix Data"
+        for scenario in web_scenarios:
+            scenario_name = scenario['name']
+            scenario_url = scenario['steps'][0]['url']
+            scenario_delay = scenario['delay']
+            scenario_status = scenario['status']
 
-# Add headers to the sheet
-headers = ['Hostname', 'Web Scenario Name', 'URL', 'Delay', 'Scenario Status', 'Trigger Name', 'Trigger Severity', 'Trigger Status']
-ws.append(headers)
+            # Get triggers for the current scenario
+            triggers = zapi.trigger.get(output='extend', hostids=host['hostid'], expandData='true')
 
-# Iterate through each host
-for host in hosts:
-    host_id = host['hostid']
-    host_name = host['name']
-    
-    # Get web scenarios for the host
-    web_scenarios = zapi.httptest.get(hostids=host_id, output=['name', 'delay', 'status'], selectSteps=['url'])
-    
-    for scenario in web_scenarios:
-        scenario_name = scenario['name']
-        delay = scenario['delay']
-        status = 'Enabled' if scenario['status'] == '0' else 'Disabled'
-        urls = [step['url'] for step in scenario['steps']]
-        url = ', '.join(urls)  # Combine URLs if there are multiple steps
-        
-        # Get triggers for the host
-        triggers = zapi.trigger.get(hostids=host_id, output=['description', 'priority', 'status'])
-        
-        for trigger in triggers:
-            trigger_name = trigger['description']
-            trigger_severity = severity_mapping.get(trigger['priority'], 'Unknown')
-            trigger_status = 'OK' if trigger['status'] == '0' else 'Problem'
-            
-            # Append data to the sheet
-            ws.append([host_name, scenario_name, url, delay, status, trigger_name, trigger_severity, trigger_status])
+            for trigger in triggers:
+                if scenario_name in trigger['description']:
+                    trigger_name = trigger['description']
+                    trigger_severity = trigger['priority']
+                    trigger_status = trigger['status']
 
-# Save the workbook
-output_file = 'zabbix_data.xlsx'
-wb.save(output_file)
+                    # Convert trigger severity to human-readable form
+                    if trigger_severity == '1':
+                        severity = 'Information'
+                    elif trigger_severity == '2':
+                        severity = 'Minor'
+                    elif trigger_severity == '3':
+                        severity = 'Warning'
+                    elif trigger_severity == '4':
+                        severity = 'Major'
+                    else:
+                        severity = 'Unknown'
 
-print(f"Data saved to {output_file}")
+                    # Append data to the list
+                    data.append({
+                        'Host Name': host_name,
+                        'Web Scenario Name': scenario_name,
+                        'URL': scenario_url,
+                        'Delay': scenario_delay,
+                        'Scenario Status': scenario_status,
+                        'Trigger Name': trigger_name,
+                        'Trigger Severity': severity,
+                        'Trigger Status': trigger_status
+                    })
+
+    # Convert data to a pandas DataFrame for easier manipulation and export
+    df = pd.DataFrame(data)
+
+    # Save data to an Excel file
+    excel_file = 'zabbix_data.xlsx'
+    df.to_excel(excel_file, index=False)
+    print(f"Data saved to {excel_file}")
+
+except ZabbixAPIException as e:
+    print(f"Zabbix API Error: {e}")
+except Exception as e:
+    print(f"Error: {e}")
+finally:
+    # Logout from Zabbix API session
+    zapi.user.logout()
