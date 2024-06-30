@@ -1,6 +1,5 @@
 from pyzabbix import ZabbixAPI
 import pandas as pd
-import re
 
 # Zabbix server URL and credentials
 ZABBIX_SERVER = 'http://your_zabbix_server/zabbix'
@@ -43,23 +42,19 @@ for scenario in web_scenarios:
 # Convert data to DataFrame
 df = pd.DataFrame(data)
 
-# Get triggers for the hosts
-triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status', 'expression'])
+# Get triggers for the hosts with expression details
+triggers = zapi.trigger.get(hostids=host_ids, output=['expression', 'description', 'priority', 'status'], selectHosts=['name'])
 
-# Add trigger information to DataFrame if trigger expression contains the Web Scenario Name
+# Add trigger information to DataFrame (filter based on expression)
 for trigger in triggers:
     for host in trigger['hosts']:
-        trigger_expression = trigger['expression']
-        web_scenario_name = host['name']
-
-        # Check if the trigger expression contains the Web Scenario Name
-        if web_scenario_name in trigger_expression:
-            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Name'] = trigger['description']
-            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Severity'] = trigger['priority']
-            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Expression'] = trigger_expression
+        # Check if trigger expression contains web scenario name (case-insensitive)
+        if any(scenario['name'].lower() in trigger['expression'].lower() for scenario in web_scenarios):
+            df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Name'] = trigger['description']
+            df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
+            df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Severity'] = trigger['priority']
 
 # Save DataFrame to Excel
-df.to_excel('web_scenarios_with_triggers.xlsx', index=False)
+df.to_excel('web_scenarios.xlsx', index=False)
 
-print('Data has been written to web_scenarios_with_triggers.xlsx')
+print('Data has been written to web_scenarios.xlsx')
