@@ -1,5 +1,5 @@
-import pyzabbix
 import pandas as pd
+from pyzabbix import ZabbixAPI
 
 # Zabbix server URL and credentials
 ZABBIX_SERVER = 'http://your_zabbix_server/zabbix'
@@ -10,7 +10,7 @@ ZABBIX_PASSWORD = 'your_password'
 HOST_GROUP_NAME = 'your_host_group_name'
 
 # Connect to Zabbix API
-zapi = pyzabbix.ZabbixAPI(ZABBIX_SERVER)
+zapi = ZabbixAPI(ZABBIX_SERVER)
 zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
 # Get the host group ID
@@ -23,46 +23,62 @@ host_group_id = host_groups[0]['groupid']
 hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name'])
 host_ids = [host['hostid'] for host in hosts]
 
-# Get the web scenarios for the hosts
-web_scenarios = zapi.httptest.get(hostids=host_ids, output=['name', 'delay', 'status'], selectSteps=['name', 'url', 'status', 'stepid'])
+# Get the web scenarios for the hosts with step details
+web_scenarios = zapi.httptest.get(
+    hostids=host_ids, output=['name', 'delay', 'status'], selectSteps=['name', 'url']
+)
 
 # Prepare data for the Excel sheet
 data = []
 for scenario in web_scenarios:
     for step in scenario['steps']:
+        trigger_name = None
+        trigger_status = None
+        trigger_severity = None
+
+        # Check for trigger description in various locations
+        if 'response' in scenario['description'].lower() or 'change' in scenario['description'].lower():
+            trigger_name = scenario['description']
+            trigger_status = 'Enabled' if scenario['status'] == '0' else 'Disabled'
+        elif step.get('url'):
+            # Check if step URL matches trigger description
+            if step['url'] in scenario['description']:
+                trigger_name = scenario['description']
+                trigger_status = 'Enabled' if scenario['status'] == '0' else 'Disabled'
+
+        # Append data with trigger information (if found)
         data.append({
             'Web Scenario Name': scenario['name'],
             'Step Name': step['name'],
-            'URL': step['url'],
+            'URL': step.get('url', ''),  # Handle potential missing URL
             'Step Status': 'Enabled' if step['status'] == '0' else 'Disabled',
             'Delay': scenario['delay'],
-            'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled'
+            'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled',
+            'Trigger Name': trigger_name,
+            'Trigger Status': trigger_status,
+            'Trigger Severity': trigger_severity,
         })
 
 # Convert data to DataFrame
 df = pd.DataFrame(data)
 
 # Get triggers for the hosts
-triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'], selectHosts=['name'])
+triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'])
 
-# Improved trigger matching logic (consider URL and host name similarity)
-for trigger in triggers:
-    for host in trigger['hosts']:
-        # Check for exact match in description (preferred)
-        if 'changed' in trigger['description'].lower():
-            df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Name'] = trigger['description']
-            df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-            df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Severity'] = trigger['priority']
-            continue
-
-        # If no exact match, check for partial match in URL or host name (optional)
-        # You can adjust the similarity threshold (e.g., using libraries like difflib)
-        for index, row in df.iterrows():
-            if (row['URL'] in trigger['description'].lower() or host['name'] in trigger['description'].lower()):
-                df.loc[index, 'Trigger Name'] = trigger['description']
-                df.loc[index, 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-                df.loc[index, 'Trigger Severity'] = trigger['priority']
-                break  # Exit inner loop after finding a match
+# Update trigger severity based on priority
+for index, row in df.iterrows():
+    for trigger in triggers:
+        if row['Web Scenario Name'] == trigger['hosts'][0]['name']:
+            # Map trigger priority to severity
+            if trigger['priority'] == 1:
+                df.loc[index, 'Trigger Severity'] = 'Information'
+            elif trigger['priority'] == 2:
+                df.loc[index, 'Trigger Severity'] = 'Minor'
+            elif trigger['priority'] == 3:
+                df.loc[index, 'Trigger Severity'] = 'Warning'
+            elif trigger['priority'] == 4:
+                df.loc[index, 'Trigger Severity'] = 'Major'
+            break  # Exit inner loop after finding a matching trigger
 
 # Save DataFrame to Excel
 df.to_excel('web_scenarios.xlsx', index=False)
