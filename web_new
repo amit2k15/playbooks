@@ -1,5 +1,6 @@
 from pyzabbix import ZabbixAPI
 import pandas as pd
+import re
 
 # Zabbix server URL and credentials
 ZABBIX_SERVER = 'http://your_zabbix_server/zabbix'
@@ -42,19 +43,23 @@ for scenario in web_scenarios:
 # Convert data to DataFrame
 df = pd.DataFrame(data)
 
-# Get triggers for the hosts where trigger description contains the Web Scenario Name
-triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'], selectHosts=['name'])
+# Get triggers for the hosts
+triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status', 'expression'])
 
-# Add trigger information to DataFrame
+# Add trigger information to DataFrame if trigger expression contains the Web Scenario Name
 for trigger in triggers:
     for host in trigger['hosts']:
-        for scenario_name in df['Web Scenario Name'].unique():
-            if scenario_name in trigger['description']:
-                df.loc[df['Web Scenario Name'] == scenario_name, 'Trigger Name'] = trigger['description']
-                df.loc[df['Web Scenario Name'] == scenario_name, 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-                df.loc[df['Web Scenario Name'] == scenario_name, 'Trigger Severity'] = trigger['priority']
+        trigger_expression = trigger['expression']
+        web_scenario_name = host['name']
+
+        # Check if the trigger expression contains the Web Scenario Name
+        if web_scenario_name in trigger_expression:
+            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Name'] = trigger['description']
+            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
+            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Severity'] = trigger['priority']
+            df.loc[df['Web Scenario Name'] == web_scenario_name, 'Trigger Expression'] = trigger_expression
 
 # Save DataFrame to Excel
-df.to_excel('web_scenarios.xlsx', index=False)
+df.to_excel('web_scenarios_with_triggers.xlsx', index=False)
 
-print('Data has been written to web_scenarios.xlsx')
+print('Data has been written to web_scenarios_with_triggers.xlsx')
