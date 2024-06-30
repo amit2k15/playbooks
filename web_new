@@ -1,0 +1,69 @@
+from pyzabbix import ZabbixAPI
+import pandas as pd
+
+# Function to map trigger severity
+def map_severity(severity):
+    severity_mapping = {
+        '1': 'minor',
+        '2': 'minor',
+        '3': 'warning',
+        '4': 'major'
+    }
+    return severity_mapping.get(severity, severity)
+
+# Connect to Zabbix API
+zapi = ZabbixAPI('http://your_zabbix_server_url')
+zapi.login('your_username', 'your_password')
+
+# Input: Host group name
+host_group_name = "YourHostGroupName"
+
+# Get host group ID
+host_groups = zapi.hostgroup.get(filter={"name": host_group_name}, output=['groupid'])
+if not host_groups:
+    raise ValueError(f"Host group {host_group_name} not found")
+host_group_id = host_groups[0]['groupid']
+
+# Get hosts in the specified host group
+hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name'])
+
+# Get web scenarios for the hosts
+web_scenarios = zapi.httptest.get(hostids=[host['hostid'] for host in hosts], output=['httptestid', 'name', 'delay', 'status'], selectSteps=['url'])
+
+# Get triggers for the hosts
+triggers = zapi.trigger.get(hostids=[host['hostid'] for host in hosts], output=['triggerid', 'description', 'priority', 'status'])
+
+# Prepare the data
+data = []
+for host in hosts:
+    host_id = host['hostid']
+    host_name = host['name']
+    
+    # Get web scenarios for the host
+    host_web_scenarios = [ws for ws in web_scenarios if ws['hostid'] == host_id]
+    
+    for ws in host_web_scenarios:
+        scenario_name = ws['name']
+        url = ws['steps'][0]['url'] if ws['steps'] else 'N/A'
+        delay = ws['delay']
+        scenario_status = 'Enabled' if ws['status'] == '0' else 'Disabled'
+        
+        # Get triggers for the host
+        host_triggers = [tr for tr in triggers if tr['hostid'] == host_id]
+        
+        for tr in host_triggers:
+            trigger_name = tr['description']
+            trigger_severity = map_severity(tr['priority'])
+            trigger_status = 'Enabled' if tr['status'] == '0' else 'Disabled'
+            
+            data.append([
+                host_name, scenario_name, url, delay, scenario_status,
+                trigger_name, trigger_severity, trigger_status
+            ])
+
+# Create a DataFrame and save to Excel
+df = pd.DataFrame(data, columns=[
+    'Hostname', 'Web Scenario Name', 'URL', 'Delay', 'Scenario Status',
+    'Trigger Name', 'Trigger Severity', 'Trigger Status'
+])
+df.to_excel('web_scenario_triggers.xlsx', index=False)
