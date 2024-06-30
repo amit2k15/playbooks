@@ -1,5 +1,5 @@
-from pyzabbix import ZabbixAPI
 import pandas as pd
+from pyzabbix import ZabbixAPI
 
 # Zabbix server URL and credentials
 ZABBIX_SERVER = 'http://your_zabbix_server/zabbix'
@@ -8,14 +8,6 @@ ZABBIX_PASSWORD = 'your_password'
 
 # Host group name
 HOST_GROUP_NAME = 'your_host_group_name'
-
-# Severity mapping dictionary
-severity_map = {
-    '1': 'Information',
-    '2': 'Minor',
-    '3': 'Warning',
-    '4': 'Major'
-}
 
 # Connect to Zabbix API
 zapi = ZabbixAPI(ZABBIX_SERVER)
@@ -38,30 +30,51 @@ web_scenarios = zapi.httptest.get(hostids=host_ids, output=['name', 'delay', 'st
 data = []
 for scenario in web_scenarios:
     for step in scenario['steps']:
+        trigger_name = ""
+        trigger_status = ""
+        trigger_severity = ""
+
+        # Check for trigger description containing keywords or URL
+        for keyword in ["response", "change"]:
+            if keyword.lower() in scenario['description'].lower():
+                trigger_name = scenario['description']
+                trigger_status = "Enabled" if scenario['status'] == '0' else 'Disabled'
+                break
+
+        if not trigger_name and step.get('url'):
+            trigger_name = step['url']
+            trigger_status = "Enabled" if scenario['status'] == '0' else 'Disabled'
+
         data.append({
             'Web Scenario Name': scenario['name'],
             'Step Name': step['name'],
-            'URL': step.get('url', ''),  # Use step URL if available, otherwise empty string
+            'URL': step['url'],
             'Step Status': 'Enabled' if step['status'] == '0' else 'Disabled',
             'Delay': scenario['delay'],
-            'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled'
+            'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled',
+            'Trigger Name': trigger_name,
+            'Trigger Status': trigger_status,
         })
 
 # Convert data to DataFrame
 df = pd.DataFrame(data)
 
 # Get triggers for the hosts
-triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'])
+triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'], selectHosts=['name'])
+
+# Map trigger severity
+severity_map = {
+    1: "Information",
+    2: "Minor",
+    3: "Warning",
+    4: "Major",
+}
 
 # Add trigger information to DataFrame
 for trigger in triggers:
     for host in trigger['hosts']:
-        if host['name'] in df['Web Scenario Name'].values:
-            # Check conditions for Trigger Name assignment
-            if 'changed' in trigger['description'].lower() or any(keyword in trigger['description'].lower() for keyword in ['response', 'change', step.get('url', '') for step in scenario['steps']]):
-                df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Name'] = trigger['description']
-                df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-                df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Severity'] = severity_map.get(str(trigger['priority']), '')
+        if trigger['description']:
+            df.loc[(df['Web Scenario Name'] == host['name']) & (df['Trigger Name'] == trigger['description']), 'Trigger Severity'] = severity_map.get(trigger['priority'])
 
 # Save DataFrame to Excel
 df.to_excel('web_scenarios.xlsx', index=False)
