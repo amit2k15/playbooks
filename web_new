@@ -1,81 +1,101 @@
+from pyzabbix import ZabbixAPI, ZabbixAPIException
 import pandas as pd
-from pyzabbix import ZabbixAPI
 
-# Zabbix server URL and credentials
-ZABBIX_SERVER = 'http://your_zabbix_server/zabbix'
+# Zabbix server details
+ZABBIX_URL = 'https://your_zabbix_server_url/zabbix'
 ZABBIX_USER = 'your_username'
 ZABBIX_PASSWORD = 'your_password'
 
-# Host group name
-HOST_GROUP_NAME = 'your_host_group_name'
+# Initialize Zabbix API
+zabbix = ZabbixAPI(ZABBIX_URL)
+zabbix.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
-# Connect to Zabbix API
-zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
+def get_hostgroup_id(group_name):
+    """Get host group ID by name."""
+    groups = zabbix.hostgroup.get(filter={'name': group_name})
+    if groups:
+        return groups[0]['groupid']
+    else:
+        raise ValueError(f"Host group '{group_name}' not found.")
 
-# Get the host group ID
-host_groups = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
-if not host_groups:
-    raise ValueError(f"Host group '{HOST_GROUP_NAME}' not found.")
-host_group_id = host_groups[0]['groupid']
+def get_hosts_in_group(group_name):
+    """Get hosts in a host group."""
+    group_id = get_hostgroup_id(group_name)
+    hosts = zabbix.host.get(groupids=group_id, output=['hostid', 'name'])
+    return hosts
 
-# Get the hosts in the specified host group
-hosts = zapi.host.get(groupids=host_group_id, output=['hostid', 'name'])
-host_ids = [host['hostid'] for host in hosts]
+def get_web_scenario_data(host_id):
+    """Get web scenario data for a host."""
+    scenarios = zabbix.httptest.get(hostids=host_id,
+                                    output=['httptestid', 'name', 'delay', 'status', 'url'],
+                                    selectTriggers='extend')
+    return scenarios
 
-# Get the web scenarios for the hosts
-web_scenarios = zapi.httptest.get(hostids=host_ids, output=['name', 'delay', 'status'], selectSteps=['name', 'url', 'status', 'stepid'])
+def get_trigger_severity(severity_num):
+    """Convert Zabbix trigger severity to custom severity."""
+    if severity_num == '1':
+        return 'Information'
+    elif severity_num == '2':
+        return 'Minor'
+    elif severity_num == '3':
+        return 'Warning'
+    elif severity_num == '4':
+        return 'Major'
+    else:
+        return 'Unknown'
 
-# Prepare data for the Excel sheet
-data = []
-for scenario in web_scenarios:
-    for step in scenario['steps']:
-        trigger_name = ""
-        trigger_status = ""
-        trigger_severity = ""
+def fetch_data_for_host_group(group_name):
+    """Fetch required data for hosts in a host group."""
+    hosts = get_hosts_in_group(group_name)
+    data = []
 
-        # Check for trigger description containing keywords or URL
-        for keyword in ["response", "change"]:
-            if keyword.lower() in scenario['description'].lower():
-                trigger_name = scenario['description']
-                trigger_status = "Enabled" if scenario['status'] == '0' else 'Disabled'
-                break
+    for host in hosts:
+        host_id = host['hostid']
+        host_name = host['name']
+        scenarios = get_web_scenario_data(host_id)
+        
+        for scenario in scenarios:
+            scenario_name = scenario['name']
+            scenario_delay = scenario['delay']
+            scenario_status = scenario['status']
+            scenario_url = scenario['url']
+            
+            for trigger in scenario['triggers']:
+                trigger_name = trigger['description']
+                trigger_severity = get_trigger_severity(trigger['priority'])
+                trigger_status = trigger['status']
 
-        if not trigger_name and step.get('url'):
-            trigger_name = step['url']
-            trigger_status = "Enabled" if scenario['status'] == '0' else 'Disabled'
+                data.append({
+                    'Host Name': host_name,
+                    'Scenario Name': scenario_name,
+                    'Delay': scenario_delay,
+                    'Status': scenario_status,
+                    'URL': scenario_url,
+                    'Trigger Name': trigger_name,
+                    'Trigger Severity': trigger_severity,
+                    'Trigger Status': trigger_status
+                })
 
-        data.append({
-            'Web Scenario Name': scenario['name'],
-            'Step Name': step['name'],
-            'URL': step['url'],
-            'Step Status': 'Enabled' if step['status'] == '0' else 'Disabled',
-            'Delay': scenario['delay'],
-            'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled',
-            'Trigger Name': trigger_name,
-            'Trigger Status': trigger_status,
-        })
+    return data
 
-# Convert data to DataFrame
-df = pd.DataFrame(data)
+def save_to_excel(data, filename):
+    """Save data to Excel."""
+    df = pd.DataFrame(data)
+    df.to_excel(filename, index=False)
 
-# Get triggers for the hosts
-triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'], selectHosts=['name'])
+if __name__ == '__main__':
+    host_group_name = 'Your Host Group Name'
+    output_filename = 'zabbix_data.xlsx'
 
-# Map trigger severity
-severity_map = {
-    1: "Information",
-    2: "Minor",
-    3: "Warning",
-    4: "Major",
-}
-
-# Add trigger information to DataFrame
-for trigger in triggers:
-    for host in trigger['hosts']:
-        if trigger['description']:
-            df.loc[(df['Web Scenario Name'] == host['name']) & (df['Trigger Name'] == trigger['description']), 'Trigger Severity'] = severity_map.get(trigger['priority'])
-
-# Save DataFrame to Excel
-df.to_excel('web_scenarios.xlsx', index=False)
-print('Data has been written to web_scenarios.xlsx')
+    try:
+        data = fetch_data_for_host_group(host_group_name)
+        save_to_excel(data, output_filename)
+        print(f"Data saved to {output_filename}")
+    except ZabbixAPIException as e:
+        print(f"Zabbix API error: {e}")
+    except ValueError as e:
+        print(f"Error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        zabbix.logout()
