@@ -1,22 +1,63 @@
 from pyzabbix import ZabbixAPI
 import pandas as pd
-import pymysql
+import pymysql  # or import pyodbc for other SQL databases
 
 # Database connection details
-db_host = 'your_db_host'
-db_user = 'your_db_user'
-db_password = 'your_db_password'
-db_name = 'your_db_name'
+db_host = 'your_database_host'
+db_user = 'your_database_user'
+db_password = 'your_database_password'
+db_name = 'your_database_name'
+
+# Connect to the database
+connection = pymysql.connect(
+    host=db_host,
+    user=db_user,
+    password=db_password,
+    db=db_name
+)
+
+# Define the host group name
+hostgroup_name = 'Your Host Group Name'
+
+# Execute SQL query
+query = f"""
+select distinct h.host as 'Host Name', h.status as 'Host Status', ht.name as 'Monitor_Name', hs.url as URL, 
+ht.delay as 'Delay', ht.status as 'Monitor Status', t.priority as 'Trigger Severity', t.status as 'Trigger Status' 
+from httptest ht 
+inner join httpstep hs 
+inner join hostgroups hg 
+inner join hstgrp hgp 
+inner join hosts h 
+inner join items i 
+inner join functions f 
+inner join triggers t 
+where h.hostid=i.hostid and i.itemid=f.itemid and f.triggerid=t.triggerid and 
+hs.httptestid=ht.httptestid and ht.hostid=hg.hostid and hg.groupid=hgp.groupid and 
+h.hostid=hg.hostid and hgp.name='{hostgroup_name}'
+"""
+with connection.cursor() as cursor:
+    cursor.execute(query)
+    query_results = cursor.fetchall()
+
+# Process the query results
+data = []
+for row in query_results:
+    data.append({
+        'Host Name': row[0],
+        'Host Status': 'Enabled' if row[1] == 0 else 'Disabled',
+        'Monitor_Name': row[2],
+        'URL': row[3],
+        'Delay': row[4],
+        'Monitor Status': 'Enabled' if row[5] == 0 else 'Disabled',
+        'Trigger Severity': {4: 'Major', 3: 'Warning', 2: 'Minor', 1: 'Information'}.get(row[6], row[6]),
+        'Trigger Status': 'Enabled' if row[7] == 0 else 'Disabled'
+    })
 
 # Connect to the Zabbix API
 zabbix_server = 'https://your_zabbix_server'
 zabbix_user = 'your_username'
 zabbix_password = 'your_password'
 
-# Define the host group name
-hostgroup_name = 'Your Host Group Name'
-
-# Connect to the Zabbix API
 zapi = ZabbixAPI(zabbix_server)
 zapi.login(zabbix_user, zabbix_password)
 
@@ -31,54 +72,11 @@ hostgroup_id = hostgroup[0]['groupid']
 # Retrieve hosts in the host group
 hosts = zapi.host.get(groupids=hostgroup_id, output=['hostid', 'name', 'status'])
 
-data = []
-
-# Connect to the database
-connection = pymysql.connect(host=db_host,
-                             user=db_user,
-                             password=db_password,
-                             database=db_name)
-
-# Execute the SQL query
-sql_query = """
-select distinct h.host as 'Host Name', h.status as 'Host Status', ht.name as 'Monitor_Name', hs.url as URL, ht.delay as 'Delay', ht.status as 'Monitor Status', t.priority as
-'Trigger Severity', t.status as 'Trigger Status' from httptest ht 
-inner join httpstep hs 
-inner join hosts_groups hg 
-inner join hstgrp hgp 
-inner join hosts h 
-inner join items i 
-inner join functions f 
-inner join triggers t 
-where h.hostid=i.hostid and i.itemid=f.itemid and f.triggerid=t.triggerid and
-hs.httptestid=ht.httptestid and ht.hostid=hg.hostid and hg.groupid=hgp.groupid and
-h.hostid=hg.hostid and hgp.name=%s
-"""
-with connection.cursor() as cursor:
-    cursor.execute(sql_query, (hostgroup_name,))
-    results = cursor.fetchall()
-
-# Process SQL query results
-for row in results:
-    severity = {4: 'Major', 3: 'Warning', 2: 'Minor', 1: 'Information'}
-    trigger_severity = severity.get(row['Trigger Severity'], row['Trigger Severity'])
-    
-    data.append({
-        'Host Name': row['Host Name'],
-        'Host Status': 'Enabled' if row['Host Status'] == 0 else 'Disabled',
-        'Monitor Name': row['Monitor_Name'],
-        'URL': row['URL'],
-        'Delay': row['Delay'],
-        'Monitor Status': 'Enabled' if row['Monitor Status'] == 0 else 'Disabled',
-        'Trigger Severity': trigger_severity,
-        'Trigger Status': 'Enabled' if row['Trigger Status'] == 0 else 'Disabled'
-    })
-
-# Retrieve data for each host from Zabbix API
+# Retrieve data for each host from Zabbix
 for host in hosts:
     items = zapi.item.get(hostids=host['hostid'], 
                           output=['name', 'status', 'delay', 'params'],
-                          filter={"templateid": ""}, # Exclude items from templates
+                          filter={"templateid": ""},  # Exclude items from templates
                           search={"templateid": ["10081", "10082"]},
                           searchWildcardsEnabled=True,
                           selectTriggers=['description', 'status', 'priority'])
@@ -91,13 +89,12 @@ for host in hosts:
             data.append({
                 'Host Name': host['name'],
                 'Host Status': 'Enabled' if host['status'] == '0' else 'Disabled',
-                'Item Name': item['name'],
-                'Item Params': item.get('params', ''),
-                'Item Status': 'Enabled' if item['status'] == '0' else 'Disabled',
+                'Monitor_Name': item['name'],
+                'URL': '',  # URL is not available from Zabbix data
                 'Delay': item['delay'],
-                'Trigger Name': trigger['description'],
-                'Trigger Status': 'Enabled' if trigger['status'] == '0' else 'Disabled',
-                'Trigger Severity': trigger_severity
+                'Monitor Status': 'Enabled' if item['status'] == '0' else 'Disabled',
+                'Trigger Severity': trigger_severity,
+                'Trigger Status': 'Enabled' if trigger['status'] == '0' else 'Disabled'
             })
 
 # Create a DataFrame and save to Excel
@@ -106,3 +103,6 @@ excel_filename = f"{hostgroup_name}_report.xlsx"
 df.to_excel(excel_filename, index=False)
 
 print(f"Report generated: {excel_filename}")
+
+# Close the database connection
+connection.close()
