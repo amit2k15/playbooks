@@ -16,7 +16,7 @@ zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 # Get the host group ID
 host_groups = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
 if not host_groups:
-  raise ValueError(f"Host group '{HOST_GROUP_NAME}' not found.")
+    raise ValueError(f"Host group '{HOST_GROUP_NAME}' not found.")
 host_group_id = host_groups[0]['groupid']
 
 # Get the hosts in the specified host group
@@ -29,30 +29,30 @@ web_scenarios = zapi.httptest.get(hostids=host_ids, output=['name', 'delay', 'st
 # Prepare data for the Excel sheet
 data = []
 for scenario in web_scenarios:
-  for step in scenario['steps']:
-    data.append({
-      'Web Scenario Name': scenario['name'],
-      'Step Name': step['name'],
-      'URL': step['url'],
-      'Step Status': 'Enabled' if step['status'] == '0' else 'Disabled',
-      'Delay': scenario['delay'],
-      'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled'
-    })
+    for step in scenario['steps']:
+        data.append({
+            'Web Scenario Name': scenario['name'],
+            'Step Name': step['name'],
+            'URL': step['url'],
+            'Step Status': 'Enabled' if step['status'] == '0' else 'Disabled',
+            'Delay': scenario['delay'],
+            'Scenario Status': 'Enabled' if scenario['status'] == '0' else 'Disabled'
+        })
 
 # Convert data to DataFrame
 df = pd.DataFrame(data)
 
-# Get triggers for the hosts with description search
+# Get triggers for the hosts where trigger description contains the Web Scenario Name
 triggers = zapi.trigger.get(hostids=host_ids, output=['description', 'priority', 'status'], selectHosts=['name'])
 
-# Add trigger information to DataFrame (filter by description containing scenario name)
+# Add trigger information to DataFrame
 for trigger in triggers:
-  for host in trigger['hosts']:
-     # Check if trigger description contains the scenario name (case-insensitive)
-     if trigger['description'].lower().find(host['name'].lower()) != -1:
-        df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Name'] = trigger['description']
-        df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-        df.loc[df['Web Scenario Name'] == host['name'], 'Trigger Severity'] = trigger['priority']
+    for host in trigger['hosts']:
+        for scenario_name in df['Web Scenario Name'].unique():
+            if scenario_name in trigger['description']:
+                df.loc[df['Web Scenario Name'] == scenario_name, 'Trigger Name'] = trigger['description']
+                df.loc[df['Web Scenario Name'] == scenario_name, 'Trigger Status'] = 'Enabled' if trigger['status'] == '0' else 'Disabled'
+                df.loc[df['Web Scenario Name'] == scenario_name, 'Trigger Severity'] = trigger['priority']
 
 # Save DataFrame to Excel
 df.to_excel('web_scenarios.xlsx', index=False)
