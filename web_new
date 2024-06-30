@@ -1,101 +1,79 @@
-from pyzabbix import ZabbixAPI, ZabbixAPIException
 import pandas as pd
+from pyzabbix import ZabbixAPI
 
-# Zabbix server details
-ZABBIX_URL = 'https://your_zabbix_server_url/zabbix'
-ZABBIX_USER = 'your_username'
-ZABBIX_PASSWORD = 'your_password'
+# Zabbix server connection settings
+zabbix_url = 'http://your-zabbix-server/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
 
 # Initialize Zabbix API
-zabbix = ZabbixAPI(ZABBIX_URL)
-zabbix.login(ZABBIX_USER, ZABBIX_PASSWORD)
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
 
-def get_hostgroup_id(group_name):
-    """Get host group ID by name."""
-    groups = zabbix.hostgroup.get(filter={'name': group_name})
-    if groups:
-        return groups[0]['groupid']
-    else:
-        raise ValueError(f"Host group '{group_name}' not found.")
+def get_hostgroup_hosts_info(hostgroup_name):
+    # Get host group ID
+    hostgroup = zapi.hostgroup.get(filter={'name': hostgroup_name})
+    if not hostgroup:
+        raise ValueError(f"Host group '{hostgroup_name}' not found.")
 
-def get_hosts_in_group(group_name):
-    """Get hosts in a host group."""
-    group_id = get_hostgroup_id(group_name)
-    hosts = zabbix.host.get(groupids=group_id, output=['hostid', 'name'])
-    return hosts
+    group_id = hostgroup[0]['groupid']
 
-def get_web_scenario_data(host_id):
-    """Get web scenario data for a host."""
-    scenarios = zabbix.httptest.get(hostids=host_id,
-                                    output=['httptestid', 'name', 'delay', 'status', 'url'],
-                                    selectTriggers='extend')
-    return scenarios
+    # Get hosts in the host group
+    hosts = zapi.host.get(groupids=group_id, output=['hostid', 'host'])
 
-def get_trigger_severity(severity_num):
-    """Convert Zabbix trigger severity to custom severity."""
-    if severity_num == '1':
-        return 'Information'
-    elif severity_num == '2':
-        return 'Minor'
-    elif severity_num == '3':
-        return 'Warning'
-    elif severity_num == '4':
-        return 'Major'
-    else:
-        return 'Unknown'
-
-def fetch_data_for_host_group(group_name):
-    """Fetch required data for hosts in a host group."""
-    hosts = get_hosts_in_group(group_name)
     data = []
-
     for host in hosts:
         host_id = host['hostid']
-        host_name = host['name']
-        scenarios = get_web_scenario_data(host_id)
+        host_name = host['host']
+
+        # Get web scenarios for the host
+        web_scenarios = zapi.httptest.get(hostids=host_id, selectSteps='extend')
         
-        for scenario in scenarios:
+        for scenario in web_scenarios:
             scenario_name = scenario['name']
             scenario_delay = scenario['delay']
             scenario_status = scenario['status']
-            scenario_url = scenario['url']
-            
-            for trigger in scenario['triggers']:
+            scenario_url = scenario['steps'][0]['url']
+
+            # Get triggers for the scenario
+            triggers = zapi.trigger.get(itemids=scenario['httptestid'], output=['description', 'priority', 'status'])
+            for trigger in triggers:
                 trigger_name = trigger['description']
-                trigger_severity = get_trigger_severity(trigger['priority'])
+                trigger_severity = trigger['priority']
                 trigger_status = trigger['status']
 
+                # Convert severity to the desired format
+                if trigger_severity == '1':
+                    severity = 'Information'
+                elif trigger_severity == '2':
+                    severity = 'Minor'
+                elif trigger_severity == '3':
+                    severity = 'Warning'
+                elif trigger_severity == '4':
+                    severity = 'Major'
+                else:
+                    severity = 'Unknown'
+
                 data.append({
-                    'Host Name': host_name,
-                    'Scenario Name': scenario_name,
+                    'Host': host_name,
+                    'Web Scenario Name': scenario_name,
                     'Delay': scenario_delay,
                     'Status': scenario_status,
                     'URL': scenario_url,
                     'Trigger Name': trigger_name,
-                    'Trigger Severity': trigger_severity,
+                    'Trigger Severity': severity,
                     'Trigger Status': trigger_status
                 })
 
     return data
 
-def save_to_excel(data, filename):
-    """Save data to Excel."""
+def save_to_excel(hostgroup_name, data):
     df = pd.DataFrame(data)
-    df.to_excel(filename, index=False)
+    file_name = f'{hostgroup_name}_web_scenarios_triggers.xlsx'
+    df.to_excel(file_name, index=False)
+    print(f"Data saved to {file_name}")
 
-if __name__ == '__main__':
-    host_group_name = 'Your Host Group Name'
-    output_filename = 'zabbix_data.xlsx'
-
-    try:
-        data = fetch_data_for_host_group(host_group_name)
-        save_to_excel(data, output_filename)
-        print(f"Data saved to {output_filename}")
-    except ZabbixAPIException as e:
-        print(f"Zabbix API error: {e}")
-    except ValueError as e:
-        print(f"Error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-    finally:
-        zabbix.logout()
+if __name__ == "__main__":
+    hostgroup_name = 'Your_Host_Group_Name'
+    hostgroup_info = get_hostgroup_hosts_info(hostgroup_name)
+    save_to_excel(hostgroup_name, hostgroup_info)
