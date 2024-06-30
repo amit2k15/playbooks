@@ -1,34 +1,79 @@
+import pandas as pd
 from pyzabbix import ZabbixAPI
 
-# Zabbix server URL
-zabbix_server = 'http://your-zabbix-server-url'
+# Connect to Zabbix API
+zapi = ZabbixAPI('https://your-zabbix-url')
+zapi.login('your-username', 'your-password')
 
-# Zabbix API credentials
-zabbix_user = 'your-username'
-zabbix_password = 'your-password'
+# Function to convert trigger severity
+def convert_severity(severity):
+    severity_map = {4: 'Major', 3: 'Warning', 2: 'Minor', 1: 'Information'}
+    return severity_map.get(severity, 'Unknown')
 
-# Hostname to search for
-hostname = 'hn'
+# Get host group ID by name
+def get_hostgroup_id(hostgroup_name):
+    hostgroup = zapi.hostgroup.get(filter={'name': hostgroup_name})
+    return hostgroup[0]['groupid'] if hostgroup else None
 
-# Connect to the Zabbix server
-zapi = ZabbixAPI(zabbix_server)
-zapi.login(zabbix_user, zabbix_password)
+# Get hosts in host group
+def get_hosts(groupid):
+    return zapi.host.get(groupids=groupid, output=['hostid', 'host'])
 
-# Get the host ID for the specified hostname
-hosts = zapi.host.get(filter={'host': hostname}, output=['hostid'])
+# Get items for host
+def get_items(hostid):
+    return zapi.item.get(hostids=hostid, output=['itemid', 'name', 'params', 'status', 'delay'], filter={'templateid': ['10081', '10082']}, search={'key_': ['10081', '10082']}, searchWildcardsEnabled=True)
 
-if not hosts:
-    print(f"No host found with hostname {hostname}")
-    exit()
+# Get triggers for host
+def get_triggers(hostid):
+    return zapi.trigger.get(hostids=hostid, output=['triggerid', 'description', 'priority', 'status'])
 
-host_id = hosts[0]['hostid']
+# Get web scenarios for host
+def get_web_scenarios(hostid):
+    return zapi.httptest.get(hostids=hostid, output=['httptestid', 'name', 'delay', 'status'])
 
-# Get web items for the host
-web_items = zapi.item.get(hostids=host_id, webitems=True, output='extend')
+# Get web scenario steps
+def get_web_scenario_steps(httptestid):
+    return zapi.httptest.get(httptestid=httptestid, selectSteps='extend')
 
-# Print web items
-for item in web_items:
-    print(f"Item ID: {item['itemid']}, Name: {item['name']}, Key: {item['key_']}, Type: {item['type']}")
+# Generate report for host group
+def generate_report(hostgroup_name):
+    groupid = get_hostgroup_id(hostgroup_name)
+    if not groupid:
+        print(f'Host group "{hostgroup_name}" not found.')
+        return
 
-# Logout from the Zabbix server
-zapi.logout()
+    hosts = get_hosts(groupid)
+    data = []
+
+    for host in hosts:
+        hostid = host['hostid']
+        items = get_items(hostid)
+        triggers = get_triggers(hostid)
+        web_scenarios = get_web_scenarios(hostid)
+
+        for item in items:
+            for trigger in triggers:
+                for web_scenario in web_scenarios:
+                    web_scenario_steps = get_web_scenario_steps(web_scenario['httptestid'])
+                    for step in web_scenario_steps:
+                        data.append({
+                            'Host Name': host['host'],
+                            'Host Status': host['status'],
+                            'Item Name': item['name'],
+                            'Item Params': item['params'],
+                            'Item Delay': item['delay'],
+                            'Item Status': item['status'],
+                            'Web Scenario Name': web_scenario['name'],
+                            'Web Scenario Delay': web_scenario['delay'],
+                            'Web Scenario Status': web_scenario['status'],
+                            'URL': step['url'],
+                            'Trigger Name': trigger['description'],
+                            'Trigger Status': trigger['status'],
+                            'Trigger Severity': convert_severity(int(trigger['priority'])),
+                        })
+
+    df = pd.DataFrame(data)
+    df.to_excel(f'{hostgroup_name}_report.xlsx', index=False)
+
+# Example usage
+generate_report('Your Host Group Name')
