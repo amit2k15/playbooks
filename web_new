@@ -3,56 +3,70 @@ import pandas as pd
 
 # Zabbix server details
 ZABBIX_SERVER = 'http://your_zabbix_server'
-ZABBIX_USERNAME = 'your_username'
-ZABBIX_PASSWORD = 'your_password'
+ZABBIX_USER = 'your_zabbix_username'
+ZABBIX_PASSWORD = 'your_zabbix_password'
+HOST_GROUP_NAME = 'Your Host Group Name'
 
 # Connect to Zabbix API
 zapi = ZabbixAPI(ZABBIX_SERVER)
-zapi.login(ZABBIX_USERNAME, ZABBIX_PASSWORD)
+zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
-def get_web_scenarios(hostgroup_name):
-    # Get hostgroup ID
-    hostgroup = zapi.hostgroup.get(filter={"name": hostgroup_name})
-    if not hostgroup:
-        print(f"No hostgroup found with the name {hostgroup_name}")
-        return
-    hostgroup_id = hostgroup[0]['groupid']
+# Fetch host group ID
+host_group = zapi.hostgroup.get(filter={"name": HOST_GROUP_NAME})
+if not host_group:
+    print(f"Host group '{HOST_GROUP_NAME}' not found")
+    exit(1)
+host_group_id = host_group[0]['groupid']
 
-    # Get hosts in the hostgroup
-    hosts = zapi.host.get(groupids=hostgroup_id)
-    host_ids = [host['hostid'] for host in hosts]
+# Fetch hosts in the host group
+hosts = zapi.host.get(groupids=host_group_id)
 
-    # Get web scenarios
-    web_scenarios = zapi.httptest.get(hostids=host_ids, output=['name', 'hostid', 'status', 'delay'], selectSteps=['name', 'url'])
-    
-    data = []
+# Define severity conversion
+severity_map = {
+    '1': 'minor',
+    '2': 'minor',
+    '3': 'warning',
+    '4': 'major',
+}
+
+data = []
+
+for host in hosts:
+    hostname = host['name']
+
+    # Fetch web scenarios for the host
+    web_scenarios = zapi.httptest.get(hostids=host['hostid'])
     for scenario in web_scenarios:
-        hostname = next(host['name'] for host in hosts if host['hostid'] == scenario['hostid'])
         scenario_name = scenario['name']
+        scenario_status = 'Enabled' if scenario['status'] == '0' else 'Disabled'
         delay = scenario['delay']
-        status = 'Enabled' if scenario['status'] == '0' else 'Disabled'
 
-        for step in scenario['steps']:
-            url = step['url']
+        # Fetch steps in the web scenario to get URLs
+        scenario_steps = zapi.httptestitem.get(httptestid=scenario['httptestid'])
+        urls = [step['url'] for step in scenario_steps]
 
-            # Get triggers for the web scenario
-            triggers = zapi.trigger.get(httptestids=scenario['httptestid'], output=['description', 'priority', 'status'])
-            for trigger in triggers:
-                trigger_name = trigger['description']
-                severity = trigger['priority']
-                severity_map = {'1': 'Minor', '2': 'Minor', '3': 'Warning', '4': 'Major'}
-                trigger_severity = severity_map.get(severity, 'Unknown')
-                trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
-                
-                data.append([hostname, scenario_name, url, delay, status, trigger_name, trigger_severity, trigger_status])
+        # Fetch triggers related to the scenario
+        triggers = zapi.trigger.get(hostids=host['hostid'])
+        for trigger in triggers:
+            trigger_name = trigger['description']
+            trigger_severity = severity_map.get(trigger['priority'], 'unknown')
+            trigger_status = 'Enabled' if trigger['status'] == '0' else 'Disabled'
 
-    # Create DataFrame
-    df = pd.DataFrame(data, columns=['Hostname', 'Web Scenario Name', 'URL', 'Delay', 'Scenario Status', 'Trigger Name', 'Trigger Severity', 'Trigger Status'])
-    return df
+            data.append([
+                hostname,
+                scenario_name,
+                urls,
+                delay,
+                scenario_status,
+                trigger_name,
+                trigger_severity,
+                trigger_status
+            ])
 
-hostgroup_name = 'Your Host Group Name'
-df = get_web_scenarios(hostgroup_name)
-
-# Save to Excel
-df.to_excel(f'{hostgroup_name}_web_scenarios.xlsx', index=False)
-print(f"Data has been saved to {hostgroup_name}_web_scenarios.xlsx")
+# Create DataFrame and save to Excel
+df = pd.DataFrame(data, columns=[
+    'Hostname', 'Web Scenario Name', 'URLs', 'Delay', 'Scenario Status',
+    'Trigger Name', 'Trigger Severity', 'Trigger Status'
+])
+df.to_excel('zabbix_web_scenarios.xlsx', index=False)
+print("Data saved to zabbix_web_scenarios.xlsx")
