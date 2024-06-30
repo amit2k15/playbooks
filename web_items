@@ -1,0 +1,34 @@
+from pyzabbix import ZabbixAPI
+
+# Zabbix server URL
+zabbix_server = 'http://your-zabbix-server-url'
+
+# Zabbix API credentials
+zabbix_user = 'your-username'
+zabbix_password = 'your-password'
+
+# Hostname to search for
+hostname = 'hn'
+
+# Connect to the Zabbix server
+zapi = ZabbixAPI(zabbix_server)
+zapi.login(zabbix_user, zabbix_password)
+
+# Get the host ID for the specified hostname
+hosts = zapi.host.get(filter={'host': hostname}, output=['hostid'])
+
+if not hosts:
+    print(f"No host found with hostname {hostname}")
+    exit()
+
+host_id = hosts[0]['hostid']
+
+# Get web items for the host
+web_items = zapi.item.get(hostids=host_id, webitems=True, output='extend')
+
+# Print web items
+for item in web_items:
+    print(f"Item ID: {item['itemid']}, Name: {item['name']}, Key: {item['key_']}, Type: {item['type']}")
+
+# Logout from the Zabbix server
+zapi.logout()
