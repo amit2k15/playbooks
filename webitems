@@ -1,0 +1,32 @@
+from pyzabbix import ZabbixAPI
+
+# Define your Zabbix server URL and credentials
+zabbix_url = 'http://your_zabbix_server/zabbix'
+zabbix_user = 'your_username'
+zabbix_password = 'your_password'
+host_group_name = 'your_host_group_name'
+
+# Initialize the Zabbix API connection
+zapi = ZabbixAPI(zabbix_url)
+zapi.login(zabbix_user, zabbix_password)
+
+# Get the host group ID
+host_group = zapi.hostgroup.get(filter={"name": host_group_name})
+if not host_group:
+    print(f"Host group '{host_group_name}' not found.")
+    exit(1)
+host_group_id = host_group[0]['groupid']
+
+# Get the hosts in the specified host group
+hosts = zapi.host.get(groupids=host_group_id)
+host_ids = [host['hostid'] for host in hosts]
+
+# Get the web items for the hosts
+web_items = zapi.item.get(hostids=host_ids, search={"key_": "web.test"}, output=["itemid", "name", "key_", "lastvalue", "status"])
+
+# Print the web items
+for item in web_items:
+    print(f"Item ID: {item['itemid']}, Name: {item['name']}, Key: {item['key_']}, Last Value: {item['lastvalue']}, Status: {item['status']}")
+
+# Logout from the Zabbix API
+zapi.logout()
