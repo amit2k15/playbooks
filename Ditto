@@ -1,0 +1,29 @@
+Dear Team,
+
+I hope this email finds you well.
+
+Thank you for attending the recent meeting on implementing self-healing for the services on servers A and B. Below is a summary of the key points discussed and the action items identified:
+
+Meeting Points Discussed:
+Overview of Self-Healing Using Zabbix:
+
+We reviewed how the self-healing mechanism works within the Zabbix monitoring system.
+Current Alerting Mechanism:
+
+Discussed the existing alerting configuration: Zabbix is set to a 1-minute polling interval to check service status. An alert is triggered when the service state changes to any state other than "Running."
+Alert Condition for Self-Healing:
+
+We examined the need to adjust the alert conditions to properly trigger a self-healing job. In certain cases, services may enter a "Stop pending" state before reaching a fully "Stopped" state, which can take a few seconds to minutes. To address this, Zabbix will initiate the self-heal action after three consecutive polling failures (any state other than "Running" for three consecutive intervals). To optimize this process, we need to modify the alerting condition.
+Implementation Plan:
+
+Discussed the steps to implement self-healing in both non-production and production environments.
+Action Items:
+Working Session with Windows Team:
+
+Schedule a working session with the Windows team to modify the Zabbix agent configuration for self-healing in the lower environment.
+Testing in Non-Prod Environment:
+
+Test the self-healing setup in the non-production environment by deliberately stopping a service to ensure the configuration works as expected.
+Please let me know if any additional points need to be addressed or if you have any questions regarding the action items.
+
+Looking forward to the next steps.
