@@ -1,0 +1,9 @@
+Hi Michael,
+
+I wanted to provide an update on our current monitoring setup and the upcoming changes.
+
+As of today, we are monitoring over 7,000 devices and more than 3,000 servers in Zabbix using the Zabbix agent. The IP addresses of our Zabbix proxies are hardcoded on these servers. In the event of a server upgrade, new IPs will be assigned to our proxies, and we will need to update these IPs on the servers to maintain seamless monitoring.
+
+This will be a significant task that requires coordination with the application teams and must be managed through a proper change activity. Given the scale, this process will take some time. With the peak season approaching, we expect blackout periods during which such activities cannot be completed. As a result, the PLM (Planned Maintenance) for these servers will be scheduled to take place after the peak season.
+
+Please let me know if you need any further details or clarification.
