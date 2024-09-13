@@ -1,6 +1,11 @@
-DECLARE @tableName NVARCHAR(255) = '${name:csv}'; -- Multi-value handling (comma-separated values)
-DECLARE @query NVARCHAR(MAX);
+DECLARE @tables NVARCHAR(MAX) = '${name:csv}';
 
-SET @query = 'SELECT COUNT(*) AS record FROM ' + @tableName + ' WHERE createdate >= DATEADD(MINUTE, -' + CAST(${scope} AS NVARCHAR(255)) + ', GETDATE())';
-
-EXEC sp_executesql @query;
+-- Dynamic SQL to handle the table name
+EXEC sp_executesql N'
+    SELECT SUM(record_count) AS total_records
+    FROM (
+        SELECT COUNT(*) AS record_count
+        FROM ' + @tables + '
+        WHERE createdate >= DATEADD(minute, -@scope, GETDATE())
+    ) AS all_records
+', N'@scope int', @scope = $scope;
