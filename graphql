@@ -1,0 +1,9 @@
+DECLARE @tableName NVARCHAR(MAX);
+SET @tableName = '$name'; -- Replace $name with the table name variable
+
+DECLARE @scope INT = $scope;
+
+DECLARE @query NVARCHAR(MAX);
+SET @query = N'SELECT COUNT(*) AS record FROM ' + @tableName + ' WHERE createdate >= DATEADD(MINUTE, -' + CAST(@scope AS NVARCHAR(MAX)) + ', GETDATE())';
+
+EXEC sp_executesql @query;
