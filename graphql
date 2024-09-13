@@ -1,9 +1,6 @@
-DECLARE @tableName NVARCHAR(MAX);
-SET @tableName = '$name'; -- Replace $name with the table name variable
-
-DECLARE @scope INT = $scope;
-
+DECLARE @tableName NVARCHAR(255) = '${name:csv}'; -- Multi-value handling (comma-separated values)
 DECLARE @query NVARCHAR(MAX);
-SET @query = N'SELECT COUNT(*) AS record FROM ' + @tableName + ' WHERE createdate >= DATEADD(MINUTE, -' + CAST(@scope AS NVARCHAR(MAX)) + ', GETDATE())';
+
+SET @query = 'SELECT COUNT(*) AS record FROM ' + @tableName + ' WHERE createdate >= DATEADD(MINUTE, -' + CAST(${scope} AS NVARCHAR(255)) + ', GETDATE())';
 
 EXEC sp_executesql @query;
