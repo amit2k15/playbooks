@@ -1,0 +1,7 @@
+Hi Karthik,
+
+During the recent access verification exercise, I noticed that Maruthi had superadmin access in our Zabbix tool. Typically, this level of access is granted only to Zabbix administrators who support all applications within our ORX Zabbix environment. Since Maruthi is currently focused on the OWCA application, I have updated his access level from superadmin to admin.
+
+As you may know, we recently upgraded to the latest version of Zabbix, which includes a role-based access policy. As part of this update, I am developing a custom role tailored for Maruthi. This role will enable him to perform all the necessary admin-level tasks specific to the OWCA application, similar to his previous capabilities.
+
+Please let me know if you have any questions or need further details.
